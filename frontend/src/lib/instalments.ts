@@ -40,11 +40,12 @@ export interface InstalmentTerms {
   readonly frequency: Frequency;
 }
 
-export interface InstalmentAnalysis {
-  /** `instalmentAmount × instalmentCount`. */
-  readonly financedTotal: Money;
-  /** `financedTotal − cashPrice`. May be zero or negative. */
-  readonly interest: Money;
+/**
+ * Everything {@link formatAnnualRate} needs. Kept separate from the analyses
+ * that carry it so a loan (BR-7) renders its rate through exactly the same
+ * rule as an instalment plan, rather than growing a second copy of it.
+ */
+export interface AnnualRateSummary {
   /** True when the difference is within the tolerated rounding band. */
   readonly isInterestFree: boolean;
   /** The rate per instalment period. Exactly 0 when interest free. */
@@ -53,6 +54,13 @@ export interface InstalmentAnalysis {
   readonly annualRate: number;
   /** True when the APR exceeds the 900% the UI is willing to print. */
   readonly isAboveDisplayCap: boolean;
+}
+
+export interface InstalmentAnalysis extends AnnualRateSummary {
+  /** `instalmentAmount × instalmentCount`. */
+  readonly financedTotal: Money;
+  /** `financedTotal − cashPrice`. May be zero or negative. */
+  readonly interest: Money;
 }
 
 function assertPositiveCount(count: number): void {
@@ -142,7 +150,7 @@ export function analyseInstalmentPlan(terms: InstalmentTerms): InstalmentAnalysi
  * Renders the APR for display. Percentages are the one place spec §0.5 allows
  * a floating-point number, because nothing is settled in them.
  */
-export function formatAnnualRate(analysis: InstalmentAnalysis): string {
+export function formatAnnualRate(analysis: AnnualRateSummary): string {
   if (analysis.isInterestFree) {
     return '0%';
   }
