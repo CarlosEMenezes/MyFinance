@@ -164,7 +164,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`money.ts`** — branded `Money` as integer minor units, HALF_UP parsing that agrees with `BigDecimal`, `format`/`formatSigned`. 29 tests, 100% lines.
 - [x] **`dates.ts`** — branded `CalendarDate` as an ISO string, epoch-day integer arithmetic, `addMonths` clamping for BR-10, the three `dateFormat` renderings. 43 tests, 100% lines.
 - [x] **`period.ts`** — BR-10 `occurrencesIn`/`plannedAmountIn` (real dates) alongside BR-3 `periodsPerMonth`/`monthlyEquivalent` (52/12 average), plus BR-6 `periodsPerYear`. 26 tests, 100% coverage.
-- [ ] `variance.ts` (BR-9) → `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
+- [x] **`variance.ts`** — BR-9. `real − planned` for **both** category types; only the `VarianceTone` differs. Yields a tone, never a colour. 13 tests, 100% coverage.
+- [ ] `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
@@ -198,3 +199,4 @@ Things discovered the hard way. Never rediscover these.
 15. **Never pipe a build into `tail` and read `$?`** — you get `tail`'s exit code, so a failed build reads as success. Redirect to a file, capture the real exit code, then grep the file. This masked a compile failure once already.
 16. **`Money` is a branded number, so unary minus on it fails lint** (`@typescript-eslint/no-unsafe-unary-minus`). Use `multiply(money, -1)` or `subtract(ZERO, money)`. The same will apply to any other branded numeric type added later.
 17. **Parse money from text, never through `parseFloat`.** `fromDecimal` reads the digit string and rounds half away from zero, so `0.005` becomes 1 cent instead of being mangled into binary floating point first. `Math.round` alone is wrong here — it rounds half towards positive infinity, so `-0.005` would disagree with the backend's `HALF_UP`.
+18. **BR-9's variance sign: the spec and the prototype disagree, and the spec wins.** The prototype flips the sign for expenses so underspending shows positive. `variance.ts` computes `real − planned` for both types and varies only the tone. A single sign convention is also what lets a column of variances be summed and sorted without asking what kind of row each one is. If a screen looks "wrong" against the prototype here, this is why — do not flip it back.
