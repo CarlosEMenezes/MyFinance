@@ -1,0 +1,13 @@
+/* BR-9's three outcomes, and the only place they become colours. */
+
+.good {
+  color: var(--color-under-plan);
+}
+
+.bad {
+  color: var(--color-over-plan);
+}
+
+.neutral {
+  color: var(--color-variance-neutral);
+}

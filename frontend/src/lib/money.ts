@@ -164,6 +164,20 @@ export function format(money: Money, currency: Currency = DEFAULT_CURRENCY): str
 }
 
 /**
+ * Renders an amount as a bare decimal — no symbol, no grouping — for a text
+ * input the user is going to edit and {@link fromDecimal} is going to reparse.
+ * A grouping separator here would fail to round-trip.
+ */
+export function toDecimalString(money: Money): string {
+  const magnitude = Math.abs(money);
+  const majorUnits = Math.trunc(magnitude / MINOR_UNITS_PER_MAJOR);
+  const minorUnits = magnitude % MINOR_UNITS_PER_MAJOR;
+  const sign = money < 0 ? '-' : '';
+
+  return `${sign}${String(majorUnits)}.${String(minorUnits).padStart(DECIMAL_PLACES, '0')}`;
+}
+
+/**
  * Renders an amount with an explicit sign, for variances and deltas where the
  * direction matters as much as the size (BR-9). Zero is rendered unsigned.
  */

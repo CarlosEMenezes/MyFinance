@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ZERO,
+  toDecimalString,
   absolute,
   add,
   compare,
@@ -154,5 +155,25 @@ describe('formatSigned', () => {
 
   it('shows zero unsigned', () => {
     expect(formatSigned(ZERO)).toBe('€0.00');
+  });
+});
+
+describe('toDecimalString', () => {
+  it('renders a plain decimal with no symbol and no grouping, for an input field', () => {
+    expect(toDecimalString(fromDecimal('1234.56'))).toBe('1234.56');
+  });
+
+  it('always shows two decimal places', () => {
+    expect(toDecimalString(fromDecimal('780'))).toBe('780.00');
+    expect(toDecimalString(fromDecimal('0.05'))).toBe('0.05');
+  });
+
+  it('keeps the sign', () => {
+    expect(toDecimalString(fromDecimal('-3.10'))).toBe('-3.10');
+  });
+
+  it('round-trips through fromDecimal', () => {
+    const amount = fromDecimal('61.34');
+    expect(fromDecimal(toDecimalString(amount))).toBe(amount);
   });
 });
