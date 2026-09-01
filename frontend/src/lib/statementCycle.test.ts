@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { fromIso, toIso } from './dates';
-import { billDateFor } from './statementCycle';
+import { billDateFor, nextDueDateOnOrAfter } from './statementCycle';
 
 interface CycleCase {
   readonly purchase: string;
@@ -164,5 +164,31 @@ describe('billDateFor — invalid cycle days', () => {
 
   it('rejects a fractional cycle day', () => {
     expect(() => billDateFor(purchase, { closingDay: 25.5, dueDay: 5 })).toThrow(/closingDay/i);
+  });
+});
+
+describe('nextDueDateOnOrAfter - BR-4', () => {
+  it('falls this month when the due day is still ahead', () => {
+    expect(toIso(nextDueDateOnOrAfter(fromIso('2026-08-01'), 5))).toBe('2026-08-05');
+  });
+
+  it('falls today when today is the due day', () => {
+    expect(toIso(nextDueDateOnOrAfter(fromIso('2026-08-05'), 5))).toBe('2026-08-05');
+  });
+
+  it('rolls to next month once the due day has passed', () => {
+    expect(toIso(nextDueDateOnOrAfter(fromIso('2026-08-31'), 5))).toBe('2026-09-05');
+  });
+
+  it('crosses the year boundary', () => {
+    expect(toIso(nextDueDateOnOrAfter(fromIso('2026-12-20'), 5))).toBe('2027-01-05');
+  });
+
+  it('lands in February without needing to clamp, because the day is capped at 28', () => {
+    expect(toIso(nextDueDateOnOrAfter(fromIso('2027-01-29'), 28))).toBe('2027-02-28');
+  });
+
+  it('rejects a due day outside the allowed range', () => {
+    expect(() => nextDueDateOnOrAfter(fromIso('2026-08-01'), 31)).toThrow(/dueDay/i);
   });
 });

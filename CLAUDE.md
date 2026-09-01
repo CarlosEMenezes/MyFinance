@@ -165,7 +165,7 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`dates.ts`** — branded `CalendarDate` as an ISO string, epoch-day integer arithmetic, `addMonths` clamping for BR-10, the three `dateFormat` renderings. 43 tests, 100% lines.
 - [x] **`period.ts`** — **BR-10 is the default**: `occurrencesIn`/`plannedAmountIn` count real dates and are the real cost. `smoothedMonthlyEquivalent` (52/12) is the narrow BR-3 exception, named so it cannot be mistaken for a real figure. Plus BR-6 `periodsPerYear`. 26 tests, 100% coverage.
 - [x] **`variance.ts`** — BR-9. `real − planned` for **both** category types; only the `VarianceTone` differs. Yields a tone, never a colour. 13 tests, 100% coverage.
-- [x] **`statementCycle.ts`** — BR-4 `billDateFor`, two independent month rolls, cycle days validated to 1–28. 27 tests, table-driven over the boundaries §4 asks for. 100% coverage.
+- [x] **`statementCycle.ts`** (+ `nextDueDateOnOrAfter`) — BR-4 `billDateFor`, two independent month rolls, cycle days validated to 1–28. 27 tests, table-driven over the boundaries §4 asks for. 100% coverage.
 - [x] **`instalments.ts`** — BR-6 `analyseInstalmentPlan`: rounding tolerance of one cent per instalment before the solver runs, bisection on the annuity identity, APR compounded by frequency, `>900%` display cap. 21 tests, 100% coverage.
 - [x] **`loans.ts`** — BR-7 `analyseLoan`: reuses BR-6's solver rather than copying it, adds the settlement figure (remaining instalments discounted to today) and the early-payoff saving. 17 tests, 100% coverage.
 - [x] **`goals.ts`** — BR-11 `planGoal`, `progressPercent`, `assessFeasibility`. Horizon is months multiplied out (daily 30.4, weekly 4.33), **not** BR-10 calendar counting — a goal is a smooth target, not a schedule. 21 tests, 100% coverage.
@@ -183,7 +183,9 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`SegmentedControl`** — native radios, so arrow-key navigation and the checked state come from the platform and the visual state cannot disagree with the form state.
 - [x] **`TagChip`** — three variants; the design system's `accent-2` is a machine-derived stand-in and is deliberately not exposed.
 - [x] **`ProgressBar`** — hairline frame, solid fill, and the BR-11 pace tick, described in `aria-valuetext` because a lone line is meaningless read aloud.
-- [ ] `AccountCard` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`AccountCard`** — BR-13. Pockets are introduced as *already part of* the balance, because the one dangerous misreading is treating them as money on top.
+- [x] **`CardSummary`** — BR-4/BR-5 as a discriminated union: a debit card has no closing day *in the type*, so one cannot be written. Explains the cycle with the card's own dates.
+- [ ] `NotificationRow` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 

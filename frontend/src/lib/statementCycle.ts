@@ -17,7 +17,7 @@
  * its spend leaves the assigned account the same day.
  */
 
-import { type CalendarDate, addMonths, dayOf, fromParts, monthOf, yearOf } from './dates';
+import { type CalendarDate, addMonths, dayOf, fromParts, isBefore, monthOf, yearOf } from './dates';
 
 /**
  * Spec §2 caps both days at 28. That is what guarantees the bill date exists
@@ -62,4 +62,19 @@ export function billDateFor(purchase: CalendarDate, cycle: CreditCardCycle): Cal
   const dueMonth = addMonths(closingMonth, dueDayHasPassedByClosing ? 1 : 0);
 
   return fromParts(yearOf(dueMonth), monthOf(dueMonth), cycle.dueDay);
+}
+
+/**
+ * When the next card bill falls: the next occurrence of the due day on or
+ * after `today`.
+ *
+ * Answers "what is coming out of my account next", which is a different
+ * question from {@link billDateFor}'s "which bill does this purchase join".
+ */
+export function nextDueDateOnOrAfter(today: CalendarDate, dueDay: number): CalendarDate {
+  assertCycleDay(dueDay, 'dueDay');
+
+  const thisMonth = fromParts(yearOf(today), monthOf(today), dueDay);
+
+  return isBefore(thisMonth, today) ? addMonths(thisMonth, 1) : thisMonth;
 }
