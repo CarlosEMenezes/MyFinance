@@ -168,7 +168,9 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`statementCycle.ts`** — BR-4 `billDateFor`, two independent month rolls, cycle days validated to 1–28. 27 tests, table-driven over the boundaries §4 asks for. 100% coverage.
 - [x] **`instalments.ts`** — BR-6 `analyseInstalmentPlan`: rounding tolerance of one cent per instalment before the solver runs, bisection on the annuity identity, APR compounded by frequency, `>900%` display cap. 21 tests, 100% coverage.
 - [x] **`loans.ts`** — BR-7 `analyseLoan`: reuses BR-6's solver rather than copying it, adds the settlement figure (remaining instalments discounted to today) and the early-payoff saving. 17 tests, 100% coverage.
-- [ ] `goals.ts` (BR-11)
+- [x] **`goals.ts`** — BR-11 `planGoal`, `progressPercent`, `assessFeasibility`. Horizon is months multiplied out (daily 30.4, weekly 4.33), **not** BR-10 calendar counting — a goal is a smooth target, not a schedule. 21 tests, 100% coverage.
+
+**`lib/` is complete: 192 tests, 100% line and function coverage.**
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
