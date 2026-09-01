@@ -1,0 +1,61 @@
+/* The frame itself — square corners, hairline border, and the positioning the
+   registration marks hang off — comes from the design system's `.blueprint`
+   class, so retuning the system retunes every panel.
+
+   The layout `.card` would have supplied is owned here instead. `.card` and a
+   module class have equal specificity, so which padding won would depend on
+   stylesheet order rather than on intent, and a variant could silently lose.
+   Density is a prop on the component for the same reason: nothing downstream
+   has to out-specify anything. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: transparent;
+}
+
+.comfortable {
+  padding: var(--space-6);
+}
+
+.compact {
+  padding: var(--space-4);
+  gap: var(--space-1);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  /* The h4 step of the type scale. The tag is an h2 so the document outline
+     is correct; only the size is borrowed. */
+  font-size: 20px;
+  margin: 0;
+}
+
+.meta {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  white-space: nowrap;
+}
+
+.subtitle {
+  font-size: 11px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  margin: 0 0 var(--space-4);
+}
+
+/* A title with a subtitle under it needs the gap below the subtitle, not
+   below the title, or the two drift apart. */
+.header:has(+ .subtitle) {
+  margin-bottom: var(--space-1);
+}

@@ -172,6 +172,11 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 
 **`lib/` is complete: 192 tests, 100% line and function coverage.**
 
+### In progress — the §5 component library, in the order the spec lists them
+- [x] **`Panel`** — the blueprint frame; always draws all four registration marks so no consumer can omit them. `density` is a prop rather than a class to override (see gotcha 19).
+- [x] **`KpiCard`** — built on `Panel`, so the frame exists in one place only. `value` is a `ReactNode` so a page can pass a `MoneyText` and keep formatting at one edge.
+- [ ] `PlanVsRealTable` → `GhostPlanRow` → `EditablePlanCell` → `SegmentedControl` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
 ### Next
@@ -205,3 +210,5 @@ Things discovered the hard way. Never rediscover these.
 16. **`Money` is a branded number, so unary minus on it fails lint** (`@typescript-eslint/no-unsafe-unary-minus`). Use `multiply(money, -1)` or `subtract(ZERO, money)`. The same will apply to any other branded numeric type added later.
 17. **Parse money from text, never through `parseFloat`.** `fromDecimal` reads the digit string and rounds half away from zero, so `0.005` becomes 1 cent instead of being mangled into binary floating point first. `Math.round` alone is wrong here — it rounds half towards positive infinity, so `-0.005` would disagree with the backend's `HALF_UP`.
 18. **BR-9's variance sign: the spec and the prototype disagree, and the spec wins.** The prototype flips the sign for expenses so underspending shows positive. `variance.ts` computes `real − planned` for both types and varies only the tone. A single sign convention is also what lets a column of variances be summed and sorted without asking what kind of row each one is. If a screen looks "wrong" against the prototype here, this is why — do not flip it back.
+19. **Never let a component variant depend on out-specifying a design-system class.** `.card` and a CSS-module class have equal specificity, so which padding wins depends on stylesheet order, not intent — and a variant can silently lose in a production build while looking right in dev. `Panel` therefore uses `.blueprint` for the frame, owns its own layout, and exposes `density` as a **prop**. Add variants as props, not as overrides.
+20. **`noUncheckedIndexedAccess` types CSS-module lookups as `string | undefined`**, which collides with `exactOptionalPropertyTypes`. Build class lists as an array and `.filter(Boolean).join(' ')` — a template literal fails lint — and declare any prop that receives one as `?: string | undefined`.
