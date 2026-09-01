@@ -1,17 +1,23 @@
 /**
  * Turning a recurring plan into a figure for a period.
  *
- * There are deliberately **two** conversions here, and they disagree:
+ * **BR-10 is the reference.** {@link occurrencesIn} and {@link plannedAmountIn}
+ * count **real dates**, and that is the real cost: a month holding five
+ * paydays plans five. The user said "€160 each week", so five weeks is €800.
+ * Every plan figure on every screen comes from here unless there is a stated
+ * reason otherwise.
  *
- * - {@link occurrencesIn} / {@link plannedAmountIn} count **real dates**
- *   (BR-10). A month holding five paydays plans five. This is what a category
- *   plan means: the user said "€160 each week", and five weeks is €800.
- * - {@link periodsPerMonth} / {@link monthlyEquivalent} use the **averaged**
- *   52/12 and 26/12 (BR-3). This is what a derived commitment row means — a
- *   smoothed monthly figure for loan repayments and card instalments, not a
- *   schedule.
+ * {@link periodsPerMonth} and {@link smoothedMonthlyEquivalent} use the
+ * averaged 52/12 and 26/12 instead. That average is **not** a real cost and
+ * must not stand in for one. It has exactly two sanctioned uses:
  *
- * Both are correct in their place. Do not unify them.
+ * 1. The derived commitment rows of BR-3 — "Loan repayments" and "Card
+ *    instalments" — which are a smoothed obligation, not a schedule.
+ * 2. The per-month equivalent the plan summary states alongside the real
+ *    figure (BR-10).
+ *
+ * Anywhere else, reach for {@link plannedAmountIn}. The two disagree by
+ * design and must never be unified.
  */
 
 import {
@@ -151,13 +157,17 @@ export function plannedAmountIn(
 }
 
 /**
- * BR-3, BR-10 — the smoothed per-month figure.
+ * BR-3, BR-10 — the **smoothed** per-month figure. Not a real cost.
  *
- * Used for derived commitment rows and for the plan summary, which always
- * states a per-month equivalent. This is an average, not a schedule: it will
- * not agree with {@link plannedAmountIn} in any particular month, and that is
- * the intended behaviour.
+ * Named for what it is so that a call site reading `smoothedMonthlyEquivalent`
+ * cannot be mistaken for the real figure. It will not agree with
+ * {@link plannedAmountIn} in any particular month, which is intended: an
+ * average of a weekly plan is €693.33 where five real paydays are €800.
+ *
+ * Use it only for the BR-3 derived commitment rows and for the per-month
+ * equivalent shown beside the real figure. For anything a user reads as
+ * "what this period costs", use {@link plannedAmountIn}.
  */
-export function monthlyEquivalent(perOccurrence: Money, frequency: Frequency): Money {
+export function smoothedMonthlyEquivalent(perOccurrence: Money, frequency: Frequency): Money {
   return multiply(perOccurrence, periodsPerMonth(frequency));
 }

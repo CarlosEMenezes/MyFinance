@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { fromIso } from './dates';
 import { fromDecimal, format } from './money';
 import {
-  monthlyEquivalent,
   occurrencesIn,
   periodsPerMonth,
   periodsPerYear,
   plannedAmountIn,
+  smoothedMonthlyEquivalent,
 } from './period';
 
 const august2026 = { start: fromIso('2026-08-01'), end: fromIso('2026-08-31') };
@@ -150,19 +150,19 @@ describe('plannedAmountIn — BR-10', () => {
   });
 });
 
-describe('monthlyEquivalent — BR-3, BR-10', () => {
+describe('smoothedMonthlyEquivalent — BR-3, the exception to BR-10', () => {
   it('averages a weekly amount over a month', () => {
     // 160 x 52/12 = 693.33
-    expect(format(monthlyEquivalent(fromDecimal('160'), 'WEEKLY'))).toBe('€693.33');
+    expect(format(smoothedMonthlyEquivalent(fromDecimal('160'), 'WEEKLY'))).toBe('€693.33');
   });
 
   it('averages a fortnightly amount over a month', () => {
     // 100 x 26/12 = 216.67
-    expect(format(monthlyEquivalent(fromDecimal('100'), 'FORTNIGHTLY'))).toBe('€216.67');
+    expect(format(smoothedMonthlyEquivalent(fromDecimal('100'), 'FORTNIGHTLY'))).toBe('€216.67');
   });
 
   it('leaves a monthly amount unchanged', () => {
-    expect(format(monthlyEquivalent(fromDecimal('780'), 'MONTHLY'))).toBe('€780.00');
+    expect(format(smoothedMonthlyEquivalent(fromDecimal('780'), 'MONTHLY'))).toBe('€780.00');
   });
 
   it('is the smoothed figure BR-3 wants, not the real-date count BR-10 gives', () => {
@@ -175,7 +175,7 @@ describe('monthlyEquivalent — BR-3, BR-10', () => {
       fromIso('2026-01-05'),
       august2026,
     );
-    const smoothed = monthlyEquivalent(fromDecimal('160'), 'WEEKLY');
+    const smoothed = smoothedMonthlyEquivalent(fromDecimal('160'), 'WEEKLY');
     expect(format(realDates)).toBe('€800.00');
     expect(format(smoothed)).toBe('€693.33');
   });

@@ -35,16 +35,16 @@ The prototype already implements the rules. These are the reference implementati
 | `dueAll`, `enabledLeads`, `unreadCount` (1386–1411) | BR-12 | — | `DuePaymentQueue` |
 | loan `settle`, `saveStr` (1741–1753) | BR-7 | `lib/loans.ts` | `LoanCalculator` |
 
-### Two recurrence models — both correct, do not unify
+### Two recurrence models — BR-10 is the reference
 
-The prototype's `occurrencesIn` counts **real dates**: a month holding five paydays plans five, never 52/12. Spec BR-3 uses the `periodsPerMonth` average (weekly 52/12, fortnightly 26/12, monthly 1).
+`occurrencesIn` counts **real dates**: a month holding five paydays plans five, never 52/12. **This is the real cost and the default for everything.** The user set "€160 each week" and August 2026 holds five of them, so August costs €800. Any plan figure a user reads comes from `plannedAmountIn`.
 
-Both are right, in different places:
+The 52/12 average (`smoothedMonthlyEquivalent`) is the exception, not a peer. It is **not** a real cost, and it is sanctioned in exactly two places:
 
-- **Category plans** use real-date counting (BR-10). The user set "€160 each week" and wants the five weeks this month.
-- **Derived loan and instalment rows** use the 52/12 average (BR-3), because they are a smoothed commitment figure, not a schedule.
+1. The BR-3 derived rows, "Loan repayments" and "Card instalments" — a smoothed obligation, not a schedule.
+2. The per-month equivalent shown *beside* the real figure in the plan summary (BR-10).
 
-Each gets its own test. The prototype states this itself at line 1204 and again in `planWindowNote` (2022).
+It is named `smoothedMonthlyEquivalent` precisely so a call site cannot pass it off as the real number. Each model has its own test, and one test asserts both against the same plan — €800 real against €693.33 smoothed — so a later attempt to unify them fails loudly. The prototype makes the same point at line 1204 and in `planWindowNote` (2022).
 
 ## Component ↔ design mapping
 
