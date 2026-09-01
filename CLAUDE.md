@@ -66,7 +66,7 @@ cd backend  && DB_USERNAME=… DB_PASSWORD=… ./mvnw spring-boot:run   # needs 
 cd frontend && npm ci && npm run dev  # proxies /api to :8085
 ```
 
-`DB_USERNAME` and `DB_PASSWORD` have **no defaults** — a fallback password in version control is a credential in version control. The app fails at startup if they are unset. `.env` files are gitignored; never commit one.
+`DB_USERNAME` and `DB_PASSWORD` have **no defaults** — a fallback password in version control is a credential in version control. The app fails at startup if they are unset. `.env` files are gitignored; never commit one. Secrets for the `dev`/`test`/`prod` GitHub environments: [docs/ci-secrets.md](docs/ci-secrets.md). **CI itself requires no secrets** — tests run on H2 and Testcontainers — and it must stay that way so pull requests from forks keep working.
 
 ---
 
