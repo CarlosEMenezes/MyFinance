@@ -163,7 +163,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 ### In progress — `lib/` pure modules, tests first
 - [x] **`money.ts`** — branded `Money` as integer minor units, HALF_UP parsing that agrees with `BigDecimal`, `format`/`formatSigned`. 29 tests, 100% lines.
 - [x] **`dates.ts`** — branded `CalendarDate` as an ISO string, epoch-day integer arithmetic, `addMonths` clamping for BR-10, the three `dateFormat` renderings. 43 tests, 100% lines.
-- [ ] `period.ts` (BR-10 `occurrencesIn`) → `variance.ts` (BR-9) → `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
+- [x] **`period.ts`** — BR-10 `occurrencesIn`/`plannedAmountIn` (real dates) alongside BR-3 `periodsPerMonth`/`monthlyEquivalent` (52/12 average), plus BR-6 `periodsPerYear`. 26 tests, 100% coverage.
+- [ ] `variance.ts` (BR-9) → `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
