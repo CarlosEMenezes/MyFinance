@@ -166,7 +166,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`period.ts`** — **BR-10 is the default**: `occurrencesIn`/`plannedAmountIn` count real dates and are the real cost. `smoothedMonthlyEquivalent` (52/12) is the narrow BR-3 exception, named so it cannot be mistaken for a real figure. Plus BR-6 `periodsPerYear`. 26 tests, 100% coverage.
 - [x] **`variance.ts`** — BR-9. `real − planned` for **both** category types; only the `VarianceTone` differs. Yields a tone, never a colour. 13 tests, 100% coverage.
 - [x] **`statementCycle.ts`** — BR-4 `billDateFor`, two independent month rolls, cycle days validated to 1–28. 27 tests, table-driven over the boundaries §4 asks for. 100% coverage.
-- [ ] `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
+- [x] **`instalments.ts`** — BR-6 `analyseInstalmentPlan`: rounding tolerance of one cent per instalment before the solver runs, bisection on the annuity identity, APR compounded by frequency, `>900%` display cap. 21 tests, 100% coverage.
+- [ ] `loans.ts` (BR-7) → `goals.ts` (BR-11)
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
