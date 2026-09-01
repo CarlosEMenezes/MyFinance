@@ -1,0 +1,34 @@
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+/* Removed from view but not from the accessibility tree, so the group keeps
+   its name where the design shows no visible label. */
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Spec §5: 44px touch targets. The design's segments are 7px/12px padded,
+   which is right under a mouse; the target grows only for a finger. */
+@media (pointer: coarse) {
+  .control :global(.seg-opt) {
+    min-height: 44px;
+  }
+}

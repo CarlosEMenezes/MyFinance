@@ -180,7 +180,10 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`EditablePlanCell`** — BR-14 inline plan editing. Holds the draft locally and parses once on commit, so a half-typed `75.` never rewrites the plan.
 - [x] **`GhostPlanRow`** — the planned line above every real line, as its own `<tr>` so the two align without grid arithmetic.
 - [x] **`PlanVsRealTable`** — a real `<table>`, not the prototype's CSS grid: headers associate with cells and each category reads as a pair of rows. Totals are given, never summed from visible rows (BR-15). Derived rows render as text (BR-14).
-- [ ] `SegmentedControl` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`SegmentedControl`** — native radios, so arrow-key navigation and the checked state come from the platform and the visual state cannot disagree with the form state.
+- [x] **`TagChip`** — three variants; the design system's `accent-2` is a machine-derived stand-in and is deliberately not exposed.
+- [x] **`ProgressBar`** — hairline frame, solid fill, and the BR-11 pace tick, described in `aria-valuetext` because a lone line is meaningless read aloud.
+- [ ] `AccountCard` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
