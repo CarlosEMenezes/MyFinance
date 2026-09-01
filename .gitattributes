@@ -1,0 +1,22 @@
+# Normalise to LF in the repository. Without this, `mvnw` gets checked out with
+# CRLF on Windows, committed that way, and then fails on the Linux CI runner
+# with "bad interpreter: No such file or directory".
+* text=auto eol=lf
+
+# Windows scripts must keep CRLF to run under cmd.exe.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# The Maven wrapper is a POSIX shell script wherever it is checked out.
+mvnw text eol=lf
+
+# Binary — never touch these.
+*.zip binary
+*.png binary
+*.jpg binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Generated: collapse in diffs and exclude from language statistics.
+package-lock.json linguist-generated=true -diff

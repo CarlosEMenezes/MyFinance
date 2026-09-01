@@ -1,0 +1,7 @@
+-- V1 baseline.
+--
+-- Establishes Flyway's schema history table against an empty database and
+-- proves the migration pipeline runs in both PostgreSQL and the H2 test
+-- database. It deliberately creates nothing: each domain table arrives with
+-- the feature that needs it (spec §6 steps 2 onward), so that a migration is
+-- never written ahead of the code that uses it.

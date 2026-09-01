@@ -1,0 +1,137 @@
+/* Application shell and grid.
+   Ported from the <helmet> block of the Claude Design prototype
+   ("Budget Tracker.dc.html"). Layout only — every colour, font and space
+   comes from tokens.css.
+
+   Spec §5: sidebar navigation on desktop; below 940px the primary pages move
+   to a bottom tab bar and the setup pages to an icon row in the top bar. */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+.side {
+  width: 218px;
+  flex: none;
+  border-right: 1px solid var(--color-divider);
+  padding: 22px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.tabbar {
+  display: none;
+}
+
+.mtop {
+  display: none;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 28px 44px;
+}
+
+/* Modular grid — equal cells, strong horizontal and vertical rhythm. */
+.g4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+.g3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+.g2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+.gwide {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 22px;
+}
+
+.brand {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.brand-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 26px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-divider);
+  margin-bottom: 24px;
+}
+
+.page-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+}
+
+.page-title {
+  font-size: 38px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 940px) {
+  .side {
+    display: none;
+  }
+  .mtop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-divider);
+    z-index: 50;
+  }
+  .main {
+    padding: 14px 14px 92px;
+  }
+  .g4 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .g3,
+  .g2,
+  .gwide {
+    grid-template-columns: 1fr;
+  }
+}

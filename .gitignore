@@ -1,0 +1,43 @@
+# Was `**/*`, which ignored the entire project. See CLAUDE.md gotcha 2.
+
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.jar
+*.war
+*.class
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Test / tooling output
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Environment
+.env
+.env.*
+!.env.example
+*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Design handoff — the zip is the reference and IS tracked; its extractions are not.
+financial-planning-web-app/
