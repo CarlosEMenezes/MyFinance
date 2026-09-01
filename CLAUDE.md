@@ -160,8 +160,12 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - `frontend/`: Vite 6 + React 18 + TS strict, Industry tokens and the shell/grid ported. **Build, lint, format and 2 tests green at 100% coverage.**
 - `.github/workflows/ci.yml` running both gates.
 
-### Next — §6 step 2, in this order
-1. `lib/` pure modules, tests first, 100%: `money.ts` (integer minor units) → `dates.ts` → `period.ts` (BR-10 `occurrencesIn`) → `variance.ts` (BR-9) → `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11).
+### In progress — `lib/` pure modules, tests first
+- [x] **`money.ts`** — branded `Money` as integer minor units, HALF_UP parsing that agrees with `BigDecimal`, `format`/`formatSigned`. 29 tests, 100% lines.
+- [ ] `dates.ts` → `period.ts` (BR-10 `occurrencesIn`) → `variance.ts` (BR-9) → `statementCycle.ts` (BR-4) → `instalments.ts` (BR-6) → `loans.ts` (BR-7) → `goals.ts` (BR-11)
+
+### Next
+1. Finish the `lib/` modules above.
 2. The reusable components in the order spec §5 lists them, each in its own folder per §0.6, starting with `Panel` (the `.blueprint` frame plus its four corner marks).
 3. Then the backend vertical slices, §6 steps 2–10.
 
@@ -188,3 +192,5 @@ Things discovered the hard way. Never rediscover these.
 13. **Import `defineConfig` from `vitest/config`, not `vite`**, or the `test` block is a type error. The `/// <reference types="vitest/config" />` comment is not enough.
 14. **npm 11 blocks package install scripts by default**, warning about `esbuild`'s postinstall. It is harmless here — esbuild ships its platform binary as an optional dependency — so `npm ci` works in CI without approving scripts. Don't "fix" it by disabling the protection.
 15. **Never pipe a build into `tail` and read `$?`** — you get `tail`'s exit code, so a failed build reads as success. Redirect to a file, capture the real exit code, then grep the file. This masked a compile failure once already.
+16. **`Money` is a branded number, so unary minus on it fails lint** (`@typescript-eslint/no-unsafe-unary-minus`). Use `multiply(money, -1)` or `subtract(ZERO, money)`. The same will apply to any other branded numeric type added later.
+17. **Parse money from text, never through `parseFloat`.** `fromDecimal` reads the digit string and rounds half away from zero, so `0.005` becomes 1 cent instead of being mangled into binary floating point first. `Math.round` alone is wrong here — it rounds half towards positive infinity, so `-0.005` would disagree with the backend's `HALF_UP`.
