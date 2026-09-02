@@ -68,6 +68,26 @@ src/components/<ComponentName>/
 
 A component is built and tested against its props before any page uses it. Pages compose components; components never import pages, never call the API, and never read global state directly — data arrives through props, actions leave through callbacks. This is what keeps maintenance cost down: a change to a component is a change to one folder with its own tests.
 
+### 0.7 Privacy and data minimisation
+
+Budget Tracker holds a complete picture of a person's finances. Later phases
+add capture mechanisms that read data the user did not type. These rules govern
+all of them.
+
+- **Minimise at the point of capture.** Parse on the device that captured the
+  data and keep only the parsed fields. Raw notification text, raw spreadsheet
+  cells and raw bank payloads are working data, never the record.
+- **Nothing leaves the device without an explicit, revocable opt-in**, granted
+  per capability and shown in Settings with a plain statement of what is sent.
+- **Retention is bounded and stated.** Captured material not converted into a
+  Transaction is purged after 30 days. The user can purge it immediately.
+- **Credentials for third parties are never held by the frontend**, never
+  logged, and encrypted at rest with a key that is rotatable without a data
+  migration.
+- **Every capture is attributable.** A Transaction records how it entered the
+  system, so a user can always answer "why is this here?".
+- A capability the user has not enabled must be **inert**, not merely hidden.
+
 ---
 
 ## 1. Product summary
@@ -87,6 +107,15 @@ The core idea running through every screen: **every category carries a plan and 
 7. **Categories & plan** — create categories, group them, and set every planned amount.
 8. **Notifications** — everything coming due, with configurable lead times.
 9. **Settings** — profile, default currency, date format, preferences.
+10. **Import** — bring an existing finance spreadsheet in: column mapping, a
+    worked example of the expected model, a downloadable pre-filled template,
+    and a staged review of every row before anything reaches the ledger.
+
+The clickable prototype covers pages 1–9 only. Pages and surfaces added after
+it — Import, the detected-transaction review queue, tag and recurrence
+controls — have no prototype reference. They are designed from the Industry
+design system and assembled from the §5 component library, and are held to the
+same visual system as everything else.
 
 ---
 
@@ -134,6 +163,62 @@ Derived, not stored as user content: `key`, `label`, `detail`, `dueDate`, `amoun
 ### NotificationSettings
 `leadDays` (subset of `{10, 5, 2}`), `channels` (`push`, `email`, `weeklySummary`).
 
+### Tag
+`id`, `userId`, `name`, `tone` (`TagTone`), `archived` (bool).
+
+`TagTone` is a closed enum of exactly six values: `NEUTRAL`, `TAG_1` … `TAG_5`.
+There is no colour picker and no free-form colour field. See BR-18.
+
+A tag may be attached to a **Transaction**, a **Category** or a **Goal**.
+Attachment is many-to-many and carries no meaning beyond grouping and
+filtering.
+
+### RecurrenceRule
+`id`, `userId`, `frequency` (`RecurrenceFrequency`), `interval` (int ≥ 1),
+`anchorDate` (LocalDate), `endMode` (`NEVER | ON_DATE | AFTER_OCCURRENCES`),
+`endDate` (LocalDate, nullable), `occurrenceLimit` (int, nullable).
+
+`RecurrenceFrequency` = `DAILY | WEEKLY | FORTNIGHTLY | MONTHLY | YEARLY`.
+**This is a distinct type from the `plannedFrequency` / instalment `frequency`
+used by BR-3, BR-6, BR-7 and BR-10.** See BR-17.
+
+`interval` multiplies the frequency: `WEEKLY` with `interval` 2 is every two
+weeks. `endDate` is set only when `endMode` is `ON_DATE`; `occurrenceLimit`
+only when `endMode` is `AFTER_OCCURRENCES`.
+
+### ImportedSheet
+`id`, `userId`, `filename`, `contentHash`, `importedAt`, `columnMapping`,
+`status` (`MAPPING | STAGED | COMMITTED | DISCARDED`), `rowCount`.
+
+### StagedRow
+`id`, `importedSheetId`, `rowNumber`, `rawValues` (the original cells),
+`proposedType`, `proposedAmount`, `proposedCurrency`, `proposedDate`,
+`proposedCategoryId`, `proposedPaymentMethodId`, `proposedTagIds`,
+`confidence` (0–1, display only), `status`
+(`PENDING | ACCEPTED | REJECTED | DUPLICATE | UNRESOLVED`),
+`duplicateOfTransactionId` (nullable), `problems` (list of field-level
+messages).
+
+### DetectedTransaction
+`id`, `userId`, `capturedAt`, `source` (`ANDROID_NOTIFICATION | OPEN_FINANCE |
+SHARED`), `sourceLabel` (the app or institution), `parsedAmount`,
+`parsedCurrency`, `parsedDate`, `parsedMerchant`, `suggestedCategoryId`
+(nullable), `suggestedPaymentMethodId` (nullable),
+`status` (`UNREVIEWED | LOGGED | DISMISSED | MATCHED`),
+`matchedTransactionId` (nullable).
+
+**This is not a `Notification`.** BR-12's `Notification` is derived, outbound
+and about money going out in future. A `DetectedTransaction` is stored,
+inbound, and about money that has already moved. The two must never share a
+type, a table or a name.
+
+### Transaction — added fields
+`source` (`MANUAL | IMPORTED | DETECTED`), `tagIds` (list, may be empty),
+`recurrenceRuleId` (nullable).
+
+`amountInDefaultCurrency` and `fxRate` become **nullable**, and are null only
+while a row is awaiting conversion under BR-21.
+
 ---
 
 ## 3. Business rules (implemented in the prototype — implement all of them)
@@ -144,6 +229,9 @@ Each rule gets at least one unit test named after it.
 `availableNow = Σ(account.balance where includeInTotals) + Σ(loan.principal for loans logged in this app) + Σ(logged earnings) − Σ(logged expenses not paid by credit card)`.
 `owed = Σ(credit card currentBalance) + Σ(remaining instalments × amount) + Σ(remaining loan instalments × amount)`.
 `totalMoneyNow = availableNow − owed`. It is displayed in red and may be negative.
+
+Transactions awaiting conversion under BR-21 are excluded from every term of
+this rule, and any figure that has excluded them must say so.
 
 **BR-2 — Borrowing moves both sides.**
 Logging a loan increases `availableNow` by the principal **and** increases `owed` by the full repayable amount (`instalmentCount × instalmentAmount`). The net effect on `totalMoneyNow` is therefore exactly the interest. A loan is **not** income and must never appear in the earnings breakdown.
@@ -193,7 +281,153 @@ An account may be excluded from totals (`includeInTotals = false`) and is then l
 Creating a category creates its planned amount and frequency. Planned amounts are editable both on the Categories page and inline on the Earnings/Expenses tables. Derived rows (loan repayments, card instalments) are read-only and must be rendered as text, not inputs.
 
 **BR-15 — View state.**
-Earnings and Expenses tables support grouping (earnings: none / group / frequency; expenses: none / group / account) and sorting (category, planned, real, variance). Expenses additionally filter by payment method; the displayed totals respect the active filter, while dashboard totals always cover the whole period.
+Earnings, Expenses and Plan acquisition each support grouping, sorting and
+filtering. The three do not share axes, because they do not share a shape.
+
+| Page | Group by | Sort by | Filter by |
+| --- | --- | --- | --- |
+| Earnings | none / group / frequency / tag | category, planned, real, variance | tag |
+| Expenses | none / group / account / tag | category, planned, real, variance | payment method, tag |
+| Plan acquisition | none / tag | rank, target date, progress, amount remaining | tag |
+
+Goals carry no planned/real pair and no payment method, so they take the axes
+BR-11 already defines rather than inheriting the category ones.
+
+Displayed totals respect the active filter, while dashboard totals always cover
+the whole period. View state is owned by the feature hook, never by a
+presentational component.
+
+**BR-16 — Recurrence is bounded.**
+A `RecurrenceRule` generates occurrences from `anchorDate` forward, stepping by
+`frequency × interval`, and stops according to `endMode`: never, on `endDate`
+inclusive, or after `occurrenceLimit` occurrences. Occurrences before the
+anchor are never generated, and none after the bound.
+
+Inside the active window, counting is exactly BR-10 — real calendar dates,
+month-length clamping, no averaging. Outside it the count is zero. `endMode`
+`NEVER` is the default and must reproduce BR-10's existing behaviour unchanged;
+every BR-10 test must still pass untouched.
+
+**BR-17 — Two frequency vocabularies, kept apart.**
+`RecurrenceFrequency` (`DAILY | WEEKLY | FORTNIGHTLY | MONTHLY | YEARLY`, with
+an `interval`) applies **only** to recurrence rules.
+
+The `Frequency` of BR-3, BR-6, BR-7 and BR-10 (`WEEKLY | FORTNIGHTLY |
+MONTHLY`) applies to category plans, instalment plans and loans, and is **not
+extended**. BR-6's `periodsPerYear` is defined for 52, 26 and 12 only; feeding
+it a daily or yearly frequency would produce a meaningless APR. An instalment
+plan or loan must never reference a `RecurrenceFrequency`, and the type system
+must make that impossible rather than merely discouraged.
+
+**BR-18 — Tags label, they do not act.**
+A tag may be attached to a Transaction, a Category or a Goal. Attachment is
+purely organisational: it adds a grouping and filtering dimension (BR-15) and
+nothing else.
+
+Tagging a Goal specifically does **not** allocate matching transactions toward
+it. BR-11's `savedAmount` has exactly one source of truth and a tag must never
+become a second. Auto-allocation, if ever built, is a separate feature with its
+own rule, because it changes BR-11's arithmetic.
+
+`TagTone` is a closed enum of six values — `NEUTRAL` plus `TAG_1` … `TAG_5`.
+The five carry hue; all six are drawn from the design system's ramps at the
+**same OKLCH lightness step** as the existing accent tints, with the 100-step
+as fill and the 800-step as text, so contrast is inherited rather than invented
+per colour. There is no colour picker, no hex field, and no API that accepts a
+colour value — only a tone name. Adding a seventh tone is a design-system
+change, not a user action.
+
+**BR-19 — An import is staged, never applied.**
+Importing a sheet creates an `ImportedSheet` and a `StagedRow` per data row.
+**Nothing reaches the ledger without explicit per-row confirmation.** A row
+becomes a Transaction only when its status is `ACCEPTED` and the user commits.
+Discarding an import removes the staged rows and leaves the ledger untouched.
+
+A row that cannot be parsed into a valid Transaction is staged `UNRESOLVED`
+with field-level `problems`, and cannot be accepted until they are resolved.
+Import never partially succeeds silently: the commit reports how many rows were
+written, skipped and rejected.
+
+**BR-20 — Duplicates are flagged, not merged.**
+Re-importing a sheet whose `contentHash` matches a previous `ImportedSheet`
+warns before proceeding.
+
+Within an import, a staged row matching an existing Transaction on date,
+amount, currency and payment method is marked `DUPLICATE`, carries
+`duplicateOfTransactionId`, and **defaults to not being imported**. The user
+may override. The app never merges or edits an existing Transaction on the
+strength of a match.
+
+**BR-21 — Imported foreign amounts defer conversion.**
+This is a scoped exception to BR-8, which continues to govern manual logging
+unchanged: a manual entry in a foreign currency still blocks on a missing rate.
+
+An imported row carries a historical date, for which a live rate is the wrong
+number. Such a row is stored with `amount` and `currency`, and with
+`amountInDefaultCurrency` and `fxRate` **null**, in state
+`AWAITING_CONVERSION`.
+
+An unconverted Transaction is **excluded from every total** — from BR-1's
+`availableNow` and `owed`, from BR-9 real figures, and from BR-15 totals. A
+screen showing a total that has excluded rows must state how many, e.g.
+"€2,412.30 · 7 entries awaiting conversion". A total that silently omits rows
+is a wrong total. The app never guesses a rate to make a figure appear
+complete.
+
+Conversion is resolved later, per row, by supplying a rate for that row's date.
+
+**BR-22 — Capture is a port; adapters are platform-specific.**
+Detecting a transaction the user did not type is one domain concept with
+several capture mechanisms behind a single port. The domain — the
+`DetectedTransaction`, the matcher of BR-24, and the review queue of BR-23 — is
+written once and is identical for every adapter.
+
+Sanctioned adapters:
+
+| Adapter | Platform | Mechanism |
+| --- | --- | --- |
+| Notification listener | Android only | Reads wallet and bank notifications with the user's explicit special-access grant |
+| Open Finance | Both | Account aggregation under PSD2 or equivalent |
+| Manual share | Both | The user shares a message or receipt into the app |
+
+**iOS cannot read other applications' notifications.** There is no public API
+for it, and none is expected. Any claim that the notification adapter is
+cross-platform is false; iOS parity comes from the Open Finance adapter, not
+from this one. A capability the current platform cannot provide is absent from
+the UI, not shown disabled.
+
+All capture is opt-in, off by default, and revocable. Parsing happens on the
+capturing device, and raw captured text is subject to §0.7.
+
+**BR-23 — A detection is a candidate, not a transaction.**
+A `DetectedTransaction` never becomes a Transaction automatically. It sits
+`UNREVIEWED` until the user opens the app and is prompted with what was found.
+Logging one requires the user to confirm or choose a category; the app may
+suggest, never decide. Dismissing one keeps it dismissed and does not
+re-present it.
+
+The resulting Transaction records `source = DETECTED`.
+
+**BR-24 — A detection is matched before it is offered.**
+Before a candidate is shown, it is matched against existing Transactions on
+amount, currency, a date window of ±3 days, and payment method where known. A
+match sets status `MATCHED` and the candidate is not offered, so an expense the
+user already logged by hand is never presented twice.
+
+Matching is advisory and non-destructive: it never edits, merges or deletes the
+Transaction it matched.
+
+**BR-25 — One column contract, three consumers.**
+The spreadsheet column contract is defined once, in
+`docs/sheet-import-format.md`, and has exactly three consumers: the parser, the
+downloadable template, and the explanation shown on the Import page.
+
+The template is **generated per user** and pre-filled with that user's own
+categories, accounts and cards, so the columns a person has to fill in are
+already meaningful to them. It is produced from the same contract as the
+parser, and a test asserts that a freshly generated template parses cleanly
+through the parser with no problems reported. A change to the contract that
+breaks any of the three fails the build.
 
 ---
 
@@ -223,6 +457,15 @@ Dependency rule: `api → application → domain`, `infrastructure → applicati
 - `PlanNormaliser` — BR-3, BR-10.
 - `GoalCalculator` — BR-11.
 - `DuePaymentQueue` — BR-12.
+- `RecurrenceCalculator` — BR-16, BR-17. Occurrence generation and bounded
+  counting. Must not accept a `Frequency` from BR-6's vocabulary, nor supply
+  one.
+- `SheetParser` — BR-19, BR-25. Cells to proposed values, with field-level
+  problems.
+- `SheetTemplateGenerator` — BR-25. The per-user pre-filled template, from the
+  same contract the parser reads.
+- `ImportDuplicateDetector` — BR-20.
+- `DetectionMatcher` — BR-24.
 
 Each is a plain class with a constructor and pure methods. These carry the highest test density in the project — table-driven tests over boundary cases (closing day 1, 28, due before/after closing, month-end, leap years, zero interest, one instalment, interest-free with rounding).
 
@@ -236,6 +479,14 @@ Standard CRUD verbs plus:
 - `POST /instalment-plans/preview` and `POST /loans/preview` return the interest calculation without persisting, so the log form can show live figures.
 
 Conventions: 400 with a field-level error list for validation, 404 for unknown ids, 409 for domain-rule violations, RFC 7807 `application/problem+json` bodies. Idempotency key on all POSTs that create money records. No entity is ever exposed directly — always a DTO record.
+
+Added endpoints: `/tags`, `/recurrence-rules`, `/detected-transactions`,
+and `/imports` with `/imports/{id}/rows`, `POST /imports/{id}/commit`,
+`GET /imports/template` (returns the pre-filled CSV of BR-25).
+
+`POST /imports` accepts the file and returns a staged sheet; it never writes to
+the ledger. Commit is the only endpoint that does, and it reports counts of
+written, skipped and rejected rows.
 
 ### Testing layers
 1. Domain unit tests (fast, no Spring).
@@ -278,6 +529,16 @@ src/
 
 Build them in that order. A page is only assembled once its components exist and are green.
 
+Added components, each in its own folder per §0.6: `TagPicker`,
+`RecurrenceEditor`, `ColumnMappingTable`, `ImportRowReview`,
+`DetectedTransactionCard`, `AwaitingConversionNotice`.
+
+`TagChip` gains a `tone` prop constrained to `TagTone`. It accepts a tone name,
+never a colour.
+
+BR-16's bounded counting extends `lib/period.ts` rather than adding a parallel
+module, and every existing BR-10 test must remain green and unmodified.
+
 ### Visual system (follow exactly — it is a wireframe/blueprint aesthetic)
 - Ground `#f2f2f3`, text `#1d1f20`, single steel accent `#5980a6`, with a 100–900 tonal ramp. Over-plan red `#8f3a3a`, under-plan green `#3d6b4a`.
 - Barlow Condensed for headings, Barlow for body.
@@ -302,6 +563,46 @@ Build them in that order. A page is only assembled once its components exist and
 11. **Hardening** — Playwright journeys for the five critical flows, performance pass, accessibility audit, documentation.
 
 At each step: tests first, one component per folder, `CLAUDE.md` updated, commit, then move on.
+
+## 6.1 Phase 2 — reducing manual entry
+
+Begins only when steps 1–11 are complete and the app is running end to end.
+
+12. **Tags, recurrence and bounds** — BR-16, BR-17, BR-18, and the BR-15
+    amendment. First, because it is the only one of the three that changes
+    existing rules and existing tested code, and both later steps attach tags
+    and recurrence to what they create.
+13. **Sheet import** — BR-19, BR-20, BR-21, BR-25, and the Import page. Its
+    staged-review flow is the model step 14 reuses.
+14. **Detection, Android adapter** — BR-22, BR-23, BR-24, the capture port, and
+    the review queue. The port is defined here even though only one adapter
+    exists, so Phase 3 adds an adapter rather than a rewrite.
+
+## 6.2 Phase 2.5 — identity hardening
+
+Prerequisite for Phase 3. No third-party sign-in is built.
+
+15. **Account security** — Argon2id password hashing, TOTP second factor
+    (RFC 6238), ten single-use recovery codes issued once at enrolment, and
+    rate limiting on all authentication endpoints.
+
+    SMS second factors are **not** used: they cost per message and are the
+    weakest common factor. Social sign-in is **not** built: it does not reduce
+    the security work, and account-linking between an email signup and a
+    provider on the same address is a takeover vector for no product gain.
+
+## 6.3 Phase 3 — Open Finance
+
+16. **Account aggregation** — the second capture adapter behind BR-22's port,
+    and the route by which iOS reaches parity.
+
+    Note that "OAuth" here means Budget Tracker acting as a **client** holding
+    consent tokens for a financial institution. That is a different feature
+    with a different risk profile from signing a user in with a social
+    provider, which §6.2 deliberately does not build. Requires: the consent
+    lifecycle including expiry and re-authorisation, encrypted token custody
+    with rotatable keys, and an ADR recording the trade-off that an aggregator
+    sees the user's full transaction history.
 
 ---
 
