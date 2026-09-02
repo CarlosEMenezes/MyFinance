@@ -1,4 +1,4 @@
-import type { Account, Card } from '../types/api';
+import type { Account, Card, CategoryList } from '../types/api';
 
 /**
  * Seed data taken from the design prototype's own `state` block
@@ -93,3 +93,54 @@ export const cards: readonly Card[] = [
     cycle: null,
   },
 ];
+
+/**
+ * Categories with the prototype's own planned amounts and anchors. The window
+ * is August 2026, which is the month the prototype hard-codes as "today" — and
+ * the month that holds five weekly paydays from a 05-01-2026 anchor.
+ */
+export const categoryList: CategoryList = {
+  period: { kind: 'MONTH', from: '2026-08-01', to: '2026-08-31', label: 'August 2026' },
+  categories: [
+    {
+      id: 'rent',
+      type: 'EXPENSE',
+      name: 'Rent',
+      group: 'Fixed',
+      plannedAmount: 78000,
+      plannedFrequency: 'MONTHLY',
+      anchorDate: '2026-01-01',
+      archived: false,
+    },
+    {
+      id: 'groceries',
+      type: 'EXPENSE',
+      name: 'Groceries',
+      group: 'Variable',
+      plannedAmount: 6000,
+      plannedFrequency: 'WEEKLY',
+      anchorDate: '2026-01-05',
+      archived: false,
+    },
+    {
+      id: 'retired',
+      type: 'EXPENSE',
+      name: 'Old subscription',
+      group: 'Fixed',
+      plannedAmount: 999,
+      plannedFrequency: 'MONTHLY',
+      anchorDate: '2026-01-03',
+      archived: true,
+    },
+    {
+      id: 'cafe',
+      type: 'EARNING',
+      name: 'Part-time café',
+      group: 'Employment',
+      plannedAmount: 16000,
+      plannedFrequency: 'WEEKLY',
+      anchorDate: '2026-01-05',
+      archived: false,
+    },
+  ],
+};

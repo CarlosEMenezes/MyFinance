@@ -139,6 +139,27 @@ export interface Category {
   readonly archived: boolean;
 }
 
+/**
+ * `GET /categories?period=…`.
+ *
+ * The window comes with the list because BR-10 counts occurrences against real
+ * dates, and where a period starts and ends is the server's to decide. The
+ * client counts *within* that window while the user edits a frequency or an
+ * anchor, which is the optimistic case ADR-7 allows.
+ */
+export interface CategoryList {
+  readonly period: PeriodWindow;
+  readonly categories: readonly Category[];
+}
+
+/** `PATCH /categories/{id}` — BR-14 inline plan editing. */
+export interface UpdateCategoryPlanRequest {
+  readonly plannedAmount?: MinorUnits;
+  readonly plannedFrequency?: PlannedFrequency;
+  readonly anchorDate?: IsoDate;
+  readonly group?: string;
+}
+
 /* ── transactions (BR-8) ────────────────────────────────────────────────── */
 
 export interface Transaction {
