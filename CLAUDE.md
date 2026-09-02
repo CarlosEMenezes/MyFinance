@@ -216,7 +216,13 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`FilterChips`** — BR-15's payment-method filter. Chips, but radios underneath: single-select, so the platform owns arrow keys and checked state.
 - [x] **`EmptyState`** — not in the prototype; drawn from the system. Keeps the blueprint frame, because an unframed empty region reads as a rendering failure rather than a state.
 
-**The §5 component library is complete: 25 components, 460 tests, 99.9% lines.** → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+**The §5 component library is complete: 25 components, 460 tests, 99.9% lines.**
+
+### In progress — the nine pages
+- [x] **Test infrastructure** — MSW seeded from the prototype's own `state` block, so a page's figures can be compared against the design directly. Unhandled requests **fail** rather than warn: a request no handler answers is a page asking for something the contract does not promise.
+- [x] **`lib/http.ts`** — the one place JSON crosses into the app. A non-2xx throws, so an RFC 7807 problem body can never be rendered as data.
+- [x] **Accounts** — BR-13 end to end. The total counts only included accounts and **never** the pockets, and says so when it has left something out.
+- [ ] Cards → Categories → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
