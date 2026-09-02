@@ -1,0 +1,15 @@
+.picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* "Month" is a name; "01-08 → 31-08-2026" is what it means. Both are shown,
+   because a period control that only names the window leaves the user
+   guessing where its edges fall. */
+.range {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  white-space: nowrap;
+}

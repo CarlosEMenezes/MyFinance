@@ -195,7 +195,11 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`WhatIfPanel`** — BR-11's slider, the other case §5 names for local computation. Only `monthlySpare` is supplied, because it depends on the whole plan.
 - [x] **`SidebarNav`** / **`BottomTabBar`** — real `NavLink`s, so the back button and open-in-new-tab work and `aria-current` marks the page rather than the accent fill carrying it alone. A component does **not** hide itself: the 940px swap lives in the shell's `.tabbar` rule.
 - [x] **`PageHeader`** — a `banner` landmark carrying the page's only `h1`.
-- [ ] `PeriodPicker` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`PeriodPicker`** — names the window *and* states the dates it covers, because BR-10 makes those edges decide how many times a weekly plan lands.
+- [x] **`FilterChips`** — BR-15's payment-method filter. Chips, but radios underneath: single-select, so the platform owns arrow keys and checked state.
+- [x] **`EmptyState`** — not in the prototype; drawn from the system. Keeps the blueprint frame, because an unframed empty region reads as a rendering failure rather than a state.
+
+**The §5 component library is complete: 25 components, 460 tests, 99.9% lines.** → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
