@@ -1,0 +1,109 @@
+.side {
+  width: 218px;
+  flex: none;
+  border-right: 1px solid var(--color-divider);
+  padding: 22px var(--space-4);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin: 0 0 26px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+
+.setupLabel {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  margin: 0 0 var(--space-2);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border: 1px solid transparent;
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.link:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+/* The current page is filled, not merely tinted: it has to survive being read
+   at a glance and being read by a screen reader, which gets aria-current. */
+.link[aria-current='page'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: block;
+}
+
+.label {
+  flex: 1;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 0 5px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.link[aria-current='page'] .badge {
+  background: var(--color-bg);
+  color: var(--color-accent-800);
+}
+
+.footer {
+  margin-top: auto;
+}
+
+.fx {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-divider);
+  font-size: 11px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}

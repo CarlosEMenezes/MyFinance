@@ -114,7 +114,6 @@
   }
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
     position: fixed;
     left: 0;
     right: 0;
@@ -134,4 +133,20 @@
   .gwide {
     grid-template-columns: 1fr;
   }
+}
+
+/* Removed from view, kept in the accessibility tree. Used wherever the design
+   carries meaning in colour, position or a bare number that would read as
+   nonsense aloud — an unread badge, a urgency tint, a control with no visible
+   label. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
