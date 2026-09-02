@@ -1,0 +1,48 @@
+.pair {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: var(--space-3);
+}
+
+.even {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+/* The conversion preview is information, so it is tinted with the accent
+   rather than warned about. */
+.conversion {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-100);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-accent-800);
+}
+
+/* The card hint is a consequence the user has not asked for, so it is drawn
+   as an aside rather than as a warning. */
+.cardHint {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--color-divider);
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-over-plan);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-over-plan);
+}
+
+.financeToggle {
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+}
