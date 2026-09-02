@@ -1,0 +1,65 @@
+.panel {
+  border: 1px solid var(--color-divider);
+  padding: var(--space-4);
+}
+
+.kicker {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-3);
+}
+
+.terms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.frequency {
+  margin-top: var(--space-2);
+}
+
+.figures {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+  list-style: none;
+}
+
+.figure {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 13px;
+  padding: var(--space-1) 0;
+}
+
+.figureLabel {
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+.good {
+  color: var(--color-under-plan);
+}
+
+.bad {
+  color: var(--color-over-plan);
+}
+
+.verdict {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--color-over-plan);
+  color: var(--color-over-plan);
+}
+
+/* Interest free is the good outcome, so it is tinted rather than warned. */
+.verdictFree {
+  border-color: var(--color-accent);
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+}

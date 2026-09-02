@@ -190,7 +190,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`LeadTimeToggle`** — BR-12 lead time with the count of what it currently catches.
 - [x] **`NotificationRow`** — BR-12. Urgency is stated in text as well as colour; read items recede rather than disappear.
 - [x] **`Dialog`** — focus moves in, Tab is trapped, Escape closes, focus returns to the opener. A portal, so a dialog opened inside a panel is not clipped by it.
-- [ ] `InstalmentCalculatorPanel` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`InstalmentCalculatorPanel`** — BR-6/BR-7 live, for money not yet committed (ADR-7). One panel serves both sides: spreading a purchase and taking a loan are the same annuity.
+- [ ] `LogEntryForm` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
