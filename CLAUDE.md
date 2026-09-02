@@ -189,7 +189,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`Checkbox`** — a real `<input type="checkbox">`, not the prototype's styled `<button>`, so the announced state and the drawn state cannot drift.
 - [x] **`LeadTimeToggle`** — BR-12 lead time with the count of what it currently catches.
 - [x] **`NotificationRow`** — BR-12. Urgency is stated in text as well as colour; read items recede rather than disappear.
-- [ ] `Dialog` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`Dialog`** — focus moves in, Tab is trapped, Escape closes, focus returns to the opener. A portal, so a dialog opened inside a panel is not clipped by it.
+- [ ] `InstalmentCalculatorPanel` → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 

@@ -49,6 +49,9 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.d.ts',
         'src/**/*.types.ts',
+        // Declarations only: compiles to an empty module, so every line reads as
+        // uncovered and drags the real figure down.
+        'src/types/**',
         'src/**/index.ts',
       ],
     },
