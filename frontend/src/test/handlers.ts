@@ -1,5 +1,6 @@
 import { HttpResponse, http } from 'msw';
 
+import { dashboard } from './dashboard.fixture';
 import { accounts, cards, categoryList } from './fixtures';
 import type { Category } from '../types/api';
 
@@ -24,6 +25,7 @@ export function resetApiState(): void {
 export const handlers = [
   http.get(`${API_BASE}/accounts`, () => HttpResponse.json(accounts)),
   http.get(`${API_BASE}/cards`, () => HttpResponse.json(cards)),
+  http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(dashboard)),
 
   http.get(`${API_BASE}/categories`, () =>
     HttpResponse.json({ period: categoryList.period, categories }),

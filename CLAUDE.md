@@ -224,7 +224,10 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **Accounts** — BR-13 end to end. The total counts only included accounts and **never** the pockets, and says so when it has left something out.
 - [x] **Cards** — BR-4/BR-5. The seam where the API's nullable `Card` becomes `CardSummary`'s discriminated union; a credit card missing its cycle degrades to the debit presentation rather than crashing or inventing a date.
 - [x] **Categories** — BR-14 inline editing with an optimistic mutation that rolls back on failure, and BR-10 made legible: each row shows ×how-many-times beside the per-occurrence amount.
-- [ ] Earnings → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **`lib/planRows.ts`** — BR-15 grouping and sorting. Pure, never mutates the rows it is given, shared by Earnings and Expenses.
+- [x] **`features/dashboard`** — one `useDashboard` query behind Earnings, Expenses and Overview, so the three can never disagree about what a period contains (spec §4: one call, computed server-side).
+- [x] **Earnings** — BR-9 and BR-15. Grouping and sorting are view state in the hook; the table renders whatever order it is handed, which is why one component serves both pages on different axes.
+- [ ] Expenses → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
