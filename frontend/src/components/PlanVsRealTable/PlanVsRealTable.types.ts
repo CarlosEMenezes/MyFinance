@@ -6,7 +6,7 @@ export interface PlanVsRealRow {
   readonly category: string;
   /** Decides how the variance reads, not how it is signed (BR-9). */
   readonly type: CategoryType;
-  /** Planned for the whole period, already normalised by lib/period (BR-10). */
+  /** Planned for the whole period, already normalised by the server (BR-10). */
   readonly planned: Money;
   readonly real: Money;
   /** How often the plan lands, e.g. "each week x 5 = EUR800.00". */

@@ -18,6 +18,20 @@ export interface DebitCardSummaryProps extends CommonCardProps {
   readonly kind: 'DEBIT';
 }
 
+/**
+ * The three BR-4 dates a card screen shows. Supplied by the server, never
+ * derived here: the server owns BR-4 for anything persisted (ADR-7), and a
+ * card's cycle is persisted.
+ */
+export interface CardCycleDates {
+  /** The next time a bill actually falls due. */
+  readonly nextBillDate: CalendarDate;
+  /** When spend on the closing day itself is billed. */
+  readonly billDateOnClosingDay: CalendarDate;
+  /** When spend the day after closing is billed — the next statement. */
+  readonly billDateAfterClosingDay: CalendarDate;
+}
+
 export interface CreditCardSummaryProps extends CommonCardProps {
   readonly kind: 'CREDIT';
   readonly creditLimit: Money;
@@ -25,8 +39,7 @@ export interface CreditCardSummaryProps extends CommonCardProps {
   readonly currentBalance: Money;
   readonly closingDay: number;
   readonly dueDay: number;
-  /** Reference date for the next bill and the worked cycle example. */
-  readonly today: CalendarDate;
+  readonly cycle: CardCycleDates;
 }
 
 export type CardSummaryProps = CreditCardSummaryProps | DebitCardSummaryProps;

@@ -14,7 +14,11 @@ const visa = {
   currentBalance: fromDecimal('386.40'),
   closingDay: 25,
   dueDay: 5,
-  today: fromIso('2026-08-31'),
+  cycle: {
+    nextBillDate: fromIso('2026-09-05'),
+    billDateOnClosingDay: fromIso('2026-09-05'),
+    billDateAfterClosingDay: fromIso('2026-10-05'),
+  },
 } as const;
 
 const debit = {

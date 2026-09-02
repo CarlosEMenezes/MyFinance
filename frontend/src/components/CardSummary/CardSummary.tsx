@@ -1,6 +1,5 @@
-import { addDays, format as formatDate, fromParts, monthOf, yearOf } from '../../lib/dates';
+import { format as formatDate } from '../../lib/dates';
 import { subtract, toMinorUnits } from '../../lib/money';
-import { billDateFor, nextDueDateOnOrAfter } from '../../lib/statementCycle';
 import { MoneyText } from '../MoneyText';
 import { Panel } from '../Panel';
 import { ProgressBar } from '../ProgressBar';
@@ -17,6 +16,10 @@ import type { CardSummaryProps, CreditCardSummaryProps } from './CardSummary.typ
  * because BR-4 is the rule users most often get wrong: a purchase does not cost
  * money on the day it is spent. Saying "spend up to day 25 is billed on
  * 05-09-2026" answers that in a way "closing day 25" does not.
+ *
+ * Those dates arrive as props rather than being computed here. Per ADR-7 the
+ * server owns BR-4 for anything persisted, and a card's cycle is persisted —
+ * so this component renders the dates, it does not derive them.
  */
 
 /** Past this much of the limit the card reads as running out of room. */
@@ -29,7 +32,7 @@ function CreditCardBody({
   currentBalance,
   closingDay,
   dueDay,
-  today,
+  cycle,
   currency = 'EUR',
   dateFormat = 'DD-MM-YYYY',
 }: CreditCardSummaryProps) {
@@ -37,12 +40,8 @@ function CreditCardBody({
   const usagePercent = limit === 0 ? 0 : (toMinorUnits(currentBalance) / limit) * PERCENT;
   const isTight = usagePercent >= TIGHT_USAGE_PERCENT;
 
-  const cycle = { closingDay, dueDay };
-  // Two worked examples either side of the closing day. Stepping a day forward
-  // rather than adding one to the day number keeps this correct at month end.
-  const onClosingDay = fromParts(yearOf(today), monthOf(today), closingDay);
-  const billedOnClosing = formatDate(billDateFor(onClosingDay, cycle), dateFormat);
-  const billedAfterClosing = formatDate(billDateFor(addDays(onClosingDay, 1), cycle), dateFormat);
+  const billedOnClosing = formatDate(cycle.billDateOnClosingDay, dateFormat);
+  const billedAfterClosing = formatDate(cycle.billDateAfterClosingDay, dateFormat);
 
   return (
     <>
@@ -74,7 +73,7 @@ function CreditCardBody({
         <div>
           <div className={styles.cycleLabel}>Next bill</div>
           <div className={[styles.cycleValue, styles.nextBill].filter(Boolean).join(' ')}>
-            {formatDate(nextDueDateOnOrAfter(today, dueDay), dateFormat)}
+            {formatDate(cycle.nextBillDate, dateFormat)}
           </div>
         </div>
       </div>
