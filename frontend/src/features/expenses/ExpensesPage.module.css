@@ -1,0 +1,24 @@
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.filter {
+  margin-bottom: var(--space-4);
+}
+
+/* BR-15: when a filter is on, the total is of what is shown, not of the
+   period. Saying so is what stops it being mistaken for the whole picture. */
+.filterNote {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  margin: 0 0 var(--space-4);
+}
+
+.status {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}

@@ -227,7 +227,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **`lib/planRows.ts`** — BR-15 grouping and sorting. Pure, never mutates the rows it is given, shared by Earnings and Expenses.
 - [x] **`features/dashboard`** — one `useDashboard` query behind Earnings, Expenses and Overview, so the three can never disagree about what a period contains (spec §4: one call, computed server-side).
 - [x] **Earnings** — BR-9 and BR-15. Grouping and sorting are view state in the hook; the table renders whatever order it is handed, which is why one component serves both pages on different axes.
-- [ ] Expenses → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **Expenses** — BR-14 derived rows render as text, BR-15 filter with totals that describe what is on screen and say so. Inline plan editing writes through `useUpdatePlanAmount`, shared with Earnings.
+- [ ] Overview → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
