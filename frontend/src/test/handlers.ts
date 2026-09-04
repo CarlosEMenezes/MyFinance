@@ -2,6 +2,7 @@ import { HttpResponse, http } from 'msw';
 
 import { dashboard } from './dashboard.fixture';
 import { accounts, cards, categoryList } from './fixtures';
+import { goals } from './goals.fixture';
 import type { Category, Dashboard, PlanRow } from '../types/api';
 
 /**
@@ -53,6 +54,7 @@ export const handlers = [
   http.get(`${API_BASE}/accounts`, () => HttpResponse.json(accounts)),
   http.get(`${API_BASE}/cards`, () => HttpResponse.json(cards)),
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
+  http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
 
   http.get(`${API_BASE}/categories`, () =>
     HttpResponse.json({ period: categoryList.period, categories }),
