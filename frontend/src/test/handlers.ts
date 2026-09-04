@@ -8,6 +8,7 @@ import { fxRates, user } from './settings.fixture';
 import type {
   Category,
   Dashboard,
+  CreateTransactionRequest,
   MarkNotificationsReadRequest,
   Notification,
   NotificationSettings,
@@ -33,6 +34,8 @@ let currentDashboard: Dashboard = dashboard;
 let notificationQueue: Notification[] = [...notifications];
 let settings: NotificationSettings = notificationSettings;
 let currentUser: User = user;
+/** Only the count is needed: the ids a fake backend hands out must not repeat. */
+let loggedTransactions: string[] = [];
 
 /** Called between tests so no test can see another's writes. */
 export function resetApiState(): void {
@@ -41,6 +44,13 @@ export function resetApiState(): void {
   notificationQueue = [...notifications];
   settings = notificationSettings;
   currentUser = user;
+  loggedTransactions = [];
+}
+
+function newTransactionId(): string {
+  const id = `t-${String(loggedTransactions.length + 1)}`;
+  loggedTransactions.push(id);
+  return id;
 }
 
 /** BR-12 persists only `readAt`, so that is the only field a write touches. */
@@ -77,6 +87,25 @@ export const handlers = [
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
   http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
   http.get(`${API_BASE}/users/me`, () => HttpResponse.json(currentUser)),
+
+  http.post(`${API_BASE}/transactions`, async ({ request }) => {
+    const body = (await request.json()) as CreateTransactionRequest;
+    // BR-8 belongs to the server: the rate and the converted amount come back
+    // from it, and the frontend renders what it is given.
+    return HttpResponse.json(
+      {
+        id: newTransactionId(),
+        ...body,
+        amountInDefaultCurrency: body.amount,
+        fxRate: 1,
+        note: null,
+        instalmentPlanId: null,
+        loanId: null,
+        plannedExpenseDate: null,
+      },
+      { status: 201 },
+    );
+  }),
   http.get(`${API_BASE}/fx/rates`, () => HttpResponse.json(fxRates)),
 
   http.patch(`${API_BASE}/users/me`, async ({ request }) => {

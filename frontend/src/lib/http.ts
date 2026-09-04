@@ -30,9 +30,21 @@ async function readProblem(response: Response): Promise<ProblemDetail | null> {
   }
 }
 
-export async function getJson<T>(path: string): Promise<T> {
+interface RequestOptions {
+  readonly method?: 'POST' | 'PATCH';
+  /** A plain record, not `HeadersInit`: the union admits arrays, which spread into indices. */
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+}
+
+/**
+ * Every verb fails the same way, so the failure path is written once. Three
+ * copies of it was three places for the error handling to drift apart.
+ */
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { Accept: 'application/json' },
+    ...options,
+    headers: { Accept: 'application/json', ...options.headers },
   });
 
   if (!response.ok) {
@@ -47,21 +59,20 @@ export async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function patchJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: 'PATCH',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+const withBody = (method: 'POST' | 'PATCH', body: unknown): RequestOptions => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
 
-  if (!response.ok) {
-    const problem = await readProblem(response);
-    throw new ApiError(
-      response.status,
-      problem?.title ?? `Request to ${path} failed with ${String(response.status)}`,
-      problem,
-    );
-  }
+export function getJson<T>(path: string): Promise<T> {
+  return request<T>(path);
+}
 
-  return (await response.json()) as T;
+export function patchJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, withBody('PATCH', body));
+}
+
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, withBody('POST', body));
 }

@@ -1,36 +1,82 @@
+import { Route, Routes } from 'react-router-dom';
+
+import { PRIMARY_NAV, setupNavWithBadge } from './app/navItems';
+import { useLogEntry } from './app/useLogEntry';
+import { BottomTabBar } from './components/BottomTabBar';
+import { LogEntryForm } from './components/LogEntryForm';
+import { SidebarNav } from './components/SidebarNav';
+import { AccountsPage } from './features/accounts';
+import { CardsPage } from './features/cards';
+import { CategoriesPage } from './features/categories';
+import { EarningsPage } from './features/earnings';
+import { ExpensesPage } from './features/expenses';
+import { GoalsPage } from './features/goals';
+import { NotificationsPage } from './features/notifications';
+import { useNotifications } from './features/notifications/hooks';
+import { OverviewPage } from './features/overview';
+import { SettingsPage } from './features/settings';
+import { today } from './lib/dates';
 import './styles/tokens.css';
 import './styles/app.css';
 
-const BRAND = 'BUDGET TRACKER';
-
 /**
- * The application shell.
+ * The application shell: navigation, the log dialog and the routes.
  *
- * Foundation only: it establishes the ground, the type pairing and the
- * responsive frame from the design. The navigation, page header controls and
- * the nine pages arrive as their own components, each built and tested in its
- * own folder before any page consumes it (spec §0.6, §6).
+ * Both navigations are always in the tree; which one is visible is decided by
+ * the 940px rule in `app.css`, so the breakpoint needs no JavaScript and no
+ * component has to know how wide the window is.
+ *
+ * The unread count is read once here and handed to both navs, because BR-12
+ * says the count drives the badge and two readings of it could disagree.
  */
 export default function App() {
+  const { unreadCount } = useNotifications();
+  const log = useLogEntry();
+  const setupNav = setupNavWithBadge(unreadCount);
+
   return (
     <div className="shell">
-      <aside className="side">
-        <div className="brand">{BRAND}</div>
-        <div className="brand-kicker">Fig. 01 — Planning</div>
-      </aside>
+      <SidebarNav
+        primary={PRIMARY_NAV}
+        setup={setupNav}
+        onLogEntry={log.openDialog}
+        defaultCurrency={log.defaultCurrency}
+        fxUpdatedAt={log.fxUpdatedAt}
+      />
 
       <main className="main">
         <div className="mtop">
-          <div className="brand">{BRAND}</div>
+          <p className="brand">BUDGET TRACKER</p>
+          <button type="button" className="btn btn-primary" onClick={log.openDialog}>
+            + Log
+          </button>
         </div>
 
-        <header className="page-header">
-          <div>
-            <div className="page-kicker">Foundation</div>
-            <h1 className="page-title">Budget Tracker</h1>
-          </div>
-        </header>
+        <Routes>
+          <Route path="/" element={<OverviewPage />} />
+          <Route path="/earnings" element={<EarningsPage />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/cards" element={<CardsPage />} />
+          <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
       </main>
+
+      <BottomTabBar items={PRIMARY_NAV} />
+
+      <LogEntryForm
+        open={log.open}
+        onClose={log.closeDialog}
+        onSubmit={log.submit}
+        categories={log.categories}
+        paymentMethods={log.paymentMethods}
+        defaultCurrency={log.defaultCurrency}
+        fx={log.fx}
+        today={today()}
+      />
     </div>
   );
 }

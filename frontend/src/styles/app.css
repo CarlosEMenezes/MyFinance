@@ -12,15 +12,9 @@
   align-items: stretch;
 }
 
-.side {
-  width: 218px;
-  flex: none;
-  border-right: 1px solid var(--color-divider);
-  padding: 22px 14px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
+/* Only whether the sidebar is present. Its width, border and padding belong
+   to `SidebarNav.module.css` — the component owns its own layout, the shell
+   owns where it appears. */
 
 .tabbar {
   display: none;

@@ -13,7 +13,9 @@ import type { SidebarNavProps } from './SidebarNav.types';
  * new tab, and `NavLink` marks the current page with `aria-current` rather
  * than leaving the accent fill to carry that meaning alone.
  *
- * Below 940px this is hidden and `BottomTabBar` takes over (spec §5).
+ * Below 940px this is hidden and `BottomTabBar` takes over (spec §5). The
+ * hiding is the shell's `.side` rule, composed in here the same way the tab
+ * bar composes `.tabbar`: a component does not decide whether it is shown.
  */
 
 function NavRow({ item }: { readonly item: NavItem }) {
@@ -44,7 +46,7 @@ export function SidebarNav({
   fxUpdatedAt,
 }: SidebarNavProps) {
   return (
-    <aside className={styles.side}>
+    <aside className={['side', styles.side].filter(Boolean).join(' ')}>
       <p className={styles.brand}>BUDGET TRACKER</p>
       <p className={styles.kicker}>Fig. 01 — Planning</p>
 

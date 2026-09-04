@@ -204,6 +204,30 @@ export interface Transaction {
   readonly plannedExpenseDate: IsoDate | null;
 }
 
+/**
+ * `POST /transactions` — what the log form commits.
+ *
+ * The amount is sent in the currency it was logged in, with no conversion:
+ * BR-8 makes the rate the server's to look up and to refuse. A frontend that
+ * sent `amountInDefaultCurrency` would be guessing at exactly the moment the
+ * rule says not to guess.
+ */
+export interface CreateTransactionRequest {
+  readonly type: TransactionType;
+  readonly categoryId: string;
+  readonly amount: MinorUnits;
+  readonly currency: CurrencyCode;
+  readonly date: IsoDate;
+  readonly paymentMethodId: string;
+  readonly note?: string | null;
+  /** Present when the purchase is being spread over instalments (BR-6). */
+  readonly financing?: {
+    readonly instalmentCount: number;
+    readonly instalmentAmount: MinorUnits;
+    readonly frequency: PlannedFrequency;
+  } | null;
+}
+
 /* ── financing (BR-6, BR-7) ─────────────────────────────────────────────── */
 
 /** The interest figures, computed by `InstalmentCalculator` / `LoanCalculator`. */

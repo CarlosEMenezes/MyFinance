@@ -63,8 +63,10 @@ Dependency rule (ArchUnit-enforced): `api → application → domain`, `infrastr
 ```bash
 cd backend  && ./mvnw verify          # tests run on H2 — no database needed
 cd backend  && DB_USERNAME=… DB_PASSWORD=… ./mvnw spring-boot:run   # needs PostgreSQL
-cd frontend && npm ci && npm run dev  # proxies /api to :8085
+cd frontend && npm ci && npm run dev  # fake API in-browser; see below
 ```
+
+`npm run dev` serves the app against MSW's browser worker, answering from the same `src/test/handlers.ts` the tests use, because the frontend was finished before the backend. Once a server is listening on :8085, `VITE_USE_MOCK_API=false npm run dev` proxies `/api` to it instead. A production build never contains the worker: `import.meta.env.DEV` is statically false, so the dynamic import is dropped.
 
 `DB_USERNAME` and `DB_PASSWORD` have **no defaults** — a fallback password in version control is a credential in version control. The app fails at startup if they are unset. `.env` files are gitignored; never commit one. Secrets for the `dev`/`test`/`prod` GitHub environments: [docs/ci-secrets.md](docs/ci-secrets.md). **CI itself requires no secrets** — tests run on H2 and Testcontainers — and it must stay that way so pull requests from forks keep working.
 
@@ -232,18 +234,26 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **Goals** — BR-11. Progress against a pace marker, and the what-if judged against what the *whole plan* leaves spare rather than against the goal itself.
 - [x] **Notifications** — BR-12. The queue is derived and sorted server-side; the page filters it to the widest enabled lead time, which is view state in the hook exactly as BR-15’s filters are. "Mark all read" clears only what is on screen, so a lead time cannot silently dismiss a warning nobody saw.
 - [x] **Settings** — BR-8 made visible: the default currency states what every total is denominated in, and the FX rates are shown in the direction the provider quoted them, with the time they were pulled. Each field saves on its own; text fields hold a draft and commit on blur, so a half-typed name is never persisted.
-- [ ] Import shell → **the app shell with routing**, which is the point every page becomes clickable in a browser rather than only in tests.
+- [x] **The app shell** — `App.tsx` holds the two navigations, the routes and the log dialog. Both navs are always in the tree; the 940px swap is `app.css`, so no JavaScript reads the viewport. BR-12's unread count is read once and handed to both, so they cannot show different badges.
+- [x] **Runnable in a browser** — `npm run dev` starts MSW's browser worker against the *same* `handlers.ts` the tests use, so what a browser shows is what the tests assert. `import.meta.env.DEV` gates it, so the dynamic import is dropped from a production build entirely. Opt out with `VITE_USE_MOCK_API=false` once a server is on :8085.
+
+**The frontend is complete: 9 pages, 25 components, 10 `lib/` modules, 617 tests, 98.9% lines.**
+
+**Import (spec §1 page 10) is deliberately absent.** It is spec §6.1 step 13, in Phase 2, which "begins only when steps 1-11 are complete". A nav entry pointing at a page that does not exist is worse than no entry: `navItems.tsx` records why.
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 
 ### Next
 
 **Phase 2 exists and is specified (spec §6.1–§6.3): tags/recurrence, sheet import, transaction detection, then identity hardening and Open Finance. It begins only when step 11 is done and the app runs end to end. Nothing from BR-16–BR-25 is implemented.**
-1. Finish the `lib/` modules above.
-2. The reusable components in the order spec §5 lists them, each in its own folder per §0.6, starting with `Panel` (the `.blueprint` frame plus its four corner marks).
-3. Then the backend vertical slices, §6 steps 2–10.
+**The frontend is done. Everything remaining is backend.**
 
-The prototype's `DCLogic` class is the reference implementation for every item in (1); [docs/design-reference.md](docs/design-reference.md) maps each rule to its line number in the handoff bundle.
+1. **Extract `docs/business-rule-vectors.md`** — the numeric vectors the TypeScript tests already assert (the €399 / 6 × €71.50 plan at 28.5% APR, the credit-union loan settling at €2,029.59 with €220.01 saved, August 2026 holding five weekly paydays). Both implementations then cite one source, which is the only thing that stops them drifting.
+2. **Java domain services first**, pure and unit-tested against those identical vectors: `MoneyCalculator`, `StatementCycleCalculator`, `InstalmentCalculator`, `LoanCalculator`, `PositionCalculator`, `PlanNormaliser`, `GoalCalculator`, `DuePaymentQueue`.
+3. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
+4. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
+
+The prototype's `DCLogic` class is the reference implementation for the business rules; [docs/design-reference.md](docs/design-reference.md) maps each rule to its line number in the handoff bundle.
 
 ---
 
@@ -273,6 +283,7 @@ Things discovered the hard way. Never rediscover these.
 17. **Parse money from text, never through `parseFloat`.** `fromDecimal` reads the digit string and rounds half away from zero, so `0.005` becomes 1 cent instead of being mangled into binary floating point first. `Math.round` alone is wrong here — it rounds half towards positive infinity, so `-0.005` would disagree with the backend's `HALF_UP`.
 18. **BR-9's variance sign: the spec and the prototype disagree, and the spec wins.** The prototype flips the sign for expenses so underspending shows positive. `variance.ts` computes `real − planned` for both types and varies only the tone. A single sign convention is also what lets a column of variances be summed and sorted without asking what kind of row each one is. If a screen looks "wrong" against the prototype here, this is why — do not flip it back.
 19. **Never let a component variant depend on out-specifying a design-system class.** `.card` and a CSS-module class have equal specificity, so which padding wins depends on stylesheet order, not intent — and a variant can silently lose in a production build while looking right in dev. `Panel` therefore uses `.blueprint` for the frame, owns its own layout, and exposes `density` as a **prop**. Add variants as props, not as overrides.
+27. **A `display:none` element has no accessible name.** `getAllByRole('navigation', { name: 'Main', hidden: true })` finds one nav, not two: `hidden: true` admits the element but the accname algorithm still computes `''` for it. Reach a hidden landmark by role and class, not by label — and note the corollary, that `css: true` in the Vitest config means jsdom really does apply `app.css`, so the 940px rules are live in tests.
 26. **A hint inside a `<label>` becomes part of the field's accessible name.** `getByLabelText('Default currency')` could not find a select whose label also wrapped "Every total is stated in this…", because the announced name was the whole paragraph. A hint *describes*, it does not *name*: put it outside the label and wire it with `aria-describedby`.
 25. **`vi.useFakeTimers()` freezes MSW.** Faking the whole event loop stops `fetch` ever resolving, so every test in the file times out at 5s. Fake only the clock: `vi.useFakeTimers({ toFake: ['Date'] })`.
 24. **A stateful fake backend, or every optimistic update looks broken.** The MSW handlers remember writes and are reset between tests. A handler that accepts a `PATCH` and then serves the original row again makes an optimistic update flash the new figure and revert on refetch — which is indistinguishable from a real rollback bug.
