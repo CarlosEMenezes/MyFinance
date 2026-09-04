@@ -3,7 +3,16 @@ import { HttpResponse, http } from 'msw';
 import { dashboard } from './dashboard.fixture';
 import { accounts, cards, categoryList } from './fixtures';
 import { goals } from './goals.fixture';
-import type { Category, Dashboard, PlanRow } from '../types/api';
+import { notifications, notificationSettings } from './notifications.fixture';
+import type {
+  Category,
+  Dashboard,
+  MarkNotificationsReadRequest,
+  Notification,
+  NotificationSettings,
+  PlanRow,
+  UpdateNotificationSettingsRequest,
+} from '../types/api';
 
 /**
  * The API as `types/api.ts` promises it, answered from the prototype's own
@@ -18,12 +27,19 @@ export const API_BASE = '/api/v1';
 
 let categories: Category[] = [...categoryList.categories];
 let currentDashboard: Dashboard = dashboard;
+let notificationQueue: Notification[] = [...notifications];
+let settings: NotificationSettings = notificationSettings;
 
 /** Called between tests so no test can see another's writes. */
 export function resetApiState(): void {
   categories = [...categoryList.categories];
   currentDashboard = dashboard;
+  notificationQueue = [...notifications];
+  settings = notificationSettings;
 }
+
+/** BR-12 persists only `readAt`, so that is the only field a write touches. */
+const READ_AT = '2026-08-31T10:00:00+01:00';
 
 /**
  * A plan edit changes the category *and* the dashboard row derived from it.
@@ -55,6 +71,25 @@ export const handlers = [
   http.get(`${API_BASE}/cards`, () => HttpResponse.json(cards)),
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
   http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
+  http.get(`${API_BASE}/notifications`, () => HttpResponse.json(notificationQueue)),
+  http.get(`${API_BASE}/notifications/settings`, () => HttpResponse.json(settings)),
+
+  http.patch(`${API_BASE}/notifications/read`, async ({ request }) => {
+    const { keys, read } = (await request.json()) as MarkNotificationsReadRequest;
+    notificationQueue = notificationQueue.map((item) =>
+      keys.includes(item.key) ? { ...item, readAt: read ? READ_AT : null } : item,
+    );
+    return HttpResponse.json(notificationQueue.filter((item) => keys.includes(item.key)));
+  }),
+
+  http.patch(`${API_BASE}/notifications/settings`, async ({ request }) => {
+    const changes = (await request.json()) as UpdateNotificationSettingsRequest;
+    settings = {
+      leadDays: changes.leadDays ?? settings.leadDays,
+      channels: changes.channels ?? settings.channels,
+    };
+    return HttpResponse.json(settings);
+  }),
 
   http.get(`${API_BASE}/categories`, () =>
     HttpResponse.json({ period: categoryList.period, categories }),

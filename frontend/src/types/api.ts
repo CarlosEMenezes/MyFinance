@@ -286,6 +286,23 @@ export interface NotificationSettings {
   };
 }
 
+/**
+ * `PATCH /notifications/read` — BR-12 read state, one item or many.
+ *
+ * Marking one row read and marking the whole queue read are the same write, so
+ * they are one endpoint: two would need two optimistic updates that must agree.
+ */
+export interface MarkNotificationsReadRequest {
+  readonly keys: readonly string[];
+  readonly read: boolean;
+}
+
+/** `PATCH /notifications/settings` — which lead times and channels are on. */
+export interface UpdateNotificationSettingsRequest {
+  readonly leadDays?: readonly number[];
+  readonly channels?: NotificationSettings['channels'];
+}
+
 /* ── the dashboard payload (BR-1, BR-2, BR-3, BR-9, BR-10, BR-15) ───────── */
 
 /**

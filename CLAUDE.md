@@ -230,7 +230,8 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 - [x] **Expenses** — BR-14 derived rows render as text, BR-15 filter with totals that describe what is on screen and say so. Inline plan editing writes through `useUpdatePlanAmount`, shared with Earnings.
 - [x] **Overview** — BR-1 and BR-2 rendered, never recomputed. One breakdown table with headed sections, so "Net for period" is the foot of a single reckoning rather than a third number beside two others.
 - [x] **Goals** — BR-11. Progress against a pace marker, and the what-if judged against what the *whole plan* leaves spare rather than against the goal itself.
-- [ ] Notifications → Earnings → Expenses → Overview → Goals → Notifications → Settings → Import shell → `TagChip` → `ProgressBar` → `MoneyText` → `VarianceText` → `AccountCard` → `CardSummary` → `NotificationRow` → `LeadTimeToggle` → `Checkbox` → `Dialog` → `LogEntryForm` → `InstalmentCalculatorPanel` → `WhatIfPanel` → `SidebarNav` → `BottomTabBar` → `PageHeader` → `PeriodPicker` → `FilterChips` → `EmptyState`
+- [x] **Notifications** — BR-12. The queue is derived and sorted server-side; the page filters it to the widest enabled lead time, which is view state in the hook exactly as BR-15’s filters are. "Mark all read" clears only what is on screen, so a lead time cannot silently dismiss a warning nobody saw.
+- [ ] Settings → Import shell → **the app shell with routing**, which is the point every page becomes clickable in a browser rather than only in tests.
 
 Both `lib/` modules sit at 100% line and function coverage; branch coverage is 97–98% because `noUncheckedIndexedAccess` requires `?? …` fallbacks on indexed reads that the surrounding validation already makes unreachable. Above the 90% floor, and preferable to casting the check away.
 

@@ -1,0 +1,42 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.queue,
+.settings {
+  align-self: start;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A divider between the lead times and the channels: they are both settings,
+   but one changes what the queue holds and the other only changes where the
+   same queue is announced. */
+.channels {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+
+.status {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+@media (max-width: 940px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
