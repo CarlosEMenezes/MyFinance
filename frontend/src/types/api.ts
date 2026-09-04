@@ -71,6 +71,25 @@ export interface User {
   readonly preferences: UserPreferences;
 }
 
+/**
+ * `PATCH /users/me` — profile and preferences.
+ *
+ * Every field is optional because Settings saves one field at a time: a form
+ * that resubmitted the whole user on each edit would overwrite a change made
+ * in another tab with a stale copy of it.
+ */
+export interface UpdateUserRequest {
+  readonly name?: string;
+  readonly age?: number | null;
+  readonly role?: string | null;
+  readonly country?: string | null;
+  readonly payCycle?: PayCycle;
+  readonly defaultCurrency?: CurrencyCode;
+  readonly dateFormat?: DateFormatPreference;
+  readonly weekStart?: WeekStart;
+  readonly preferences?: UserPreferences;
+}
+
 /* ── accounts and pockets (BR-13) ───────────────────────────────────────── */
 
 export interface Pocket {

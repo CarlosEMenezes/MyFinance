@@ -4,6 +4,7 @@ import { dashboard } from './dashboard.fixture';
 import { accounts, cards, categoryList } from './fixtures';
 import { goals } from './goals.fixture';
 import { notifications, notificationSettings } from './notifications.fixture';
+import { fxRates, user } from './settings.fixture';
 import type {
   Category,
   Dashboard,
@@ -12,6 +13,8 @@ import type {
   NotificationSettings,
   PlanRow,
   UpdateNotificationSettingsRequest,
+  UpdateUserRequest,
+  User,
 } from '../types/api';
 
 /**
@@ -29,6 +32,7 @@ let categories: Category[] = [...categoryList.categories];
 let currentDashboard: Dashboard = dashboard;
 let notificationQueue: Notification[] = [...notifications];
 let settings: NotificationSettings = notificationSettings;
+let currentUser: User = user;
 
 /** Called between tests so no test can see another's writes. */
 export function resetApiState(): void {
@@ -36,6 +40,7 @@ export function resetApiState(): void {
   currentDashboard = dashboard;
   notificationQueue = [...notifications];
   settings = notificationSettings;
+  currentUser = user;
 }
 
 /** BR-12 persists only `readAt`, so that is the only field a write touches. */
@@ -71,6 +76,15 @@ export const handlers = [
   http.get(`${API_BASE}/cards`, () => HttpResponse.json(cards)),
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
   http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
+  http.get(`${API_BASE}/users/me`, () => HttpResponse.json(currentUser)),
+  http.get(`${API_BASE}/fx/rates`, () => HttpResponse.json(fxRates)),
+
+  http.patch(`${API_BASE}/users/me`, async ({ request }) => {
+    const changes = (await request.json()) as UpdateUserRequest;
+    currentUser = { ...currentUser, ...changes };
+    return HttpResponse.json(currentUser);
+  }),
+
   http.get(`${API_BASE}/notifications`, () => HttpResponse.json(notificationQueue)),
   http.get(`${API_BASE}/notifications/settings`, () => HttpResponse.json(settings)),
 
