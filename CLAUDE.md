@@ -260,9 +260,10 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 - [x] **`PlanNormaliser`** — BR-10 counted on real dates: a month holding five paydays plans five. Monthly occurrences are computed from the *original* anchor each time, never by stepping from an already-clamped one, so 31 Jan → 28 Feb → **31** Mar.
 - [x] **`VarianceCalculator`** — BR-9. `real − planned` for both kinds, only the tone differs, so a column of variances can be summed without asking what kind each row is.
 - [x] **`GoalCalculator`** — BR-11. The horizon is months multiplied out (daily 30.4, weekly 4.33), deliberately *not* BR-10's real-date counting: a goal has no anchor date, so counting calendar contributions would answer a question nobody asked. `ContributionFrequency` is its own enum for the same reason BR-17 keeps vocabularies apart — it carries DAILY, which has no meaningful `periodsPerYear`.
-- [ ] `PositionCalculator` (BR-1, BR-2) → `DuePaymentQueue` (BR-12).
+- [x] **`PositionCalculator`** — BR-1, BR-2, and BR-3's derived rows. Loan principals are added to `availableNow` as their own term, exactly as BR-1 states, and the whole repayment goes on the other side, so borrowing nets out to the interest and nothing else. `AccountBalance` cannot see pockets at all, which is the only design that makes BR-13's double-count impossible rather than merely avoided.
+- [x] **`DuePaymentQueue`** — BR-12. Derived every time, never stored, so a paid card drops out on its own. The lead-time counts are taken over the *whole* queue rather than the visible part, because the number says what turning an option on would add.
 
-**`./mvnw verify` green — 161 tests, ArchUnit and JaCoCo floors held.**
+**The domain layer is complete: `./mvnw verify` green — 185 tests, ArchUnit and JaCoCo floors held.**
 
 ### Then
 1. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
