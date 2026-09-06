@@ -10,6 +10,11 @@ import type { ProblemDetail } from '../types/api';
 
 export const API_BASE = '/api/v1';
 
+const NO_CONTENT = 204;
+
+/** The status the API answers with when nobody is signed in (ADR-11). */
+export const UNAUTHORISED = 401;
+
 export class ApiError extends Error {
   readonly status: number;
   readonly problem: ProblemDetail | null;
@@ -44,6 +49,11 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
+    // ADR-11: the session is an HttpOnly cookie, so the browser attaches it and
+    // this app never touches it. There is no Authorization header here and
+    // there should never be one — a token this code could read is a token an
+    // XSS could read.
+    credentials: 'same-origin',
     headers: { Accept: 'application/json', ...options.headers },
   });
 
@@ -54,6 +64,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       problem?.title ?? `Request to ${path} failed with ${String(response.status)}`,
       problem,
     );
+  }
+
+  // 204 has no body, and asking for one throws.
+  if (response.status === NO_CONTENT) {
+    return undefined as T;
   }
 
   return (await response.json()) as T;
@@ -75,4 +90,9 @@ export function patchJson<T>(path: string, body: unknown): Promise<T> {
 
 export function postJson<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, withBody('POST', body));
+}
+
+/** For a POST whose answer is only its status, such as signing out. */
+export async function postNothing(path: string): Promise<void> {
+  await request<unknown>(path, { method: 'POST' });
 }

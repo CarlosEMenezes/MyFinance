@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { PRIMARY_NAV, setupNavWithBadge } from './app/navItems';
 import { useLogEntry } from './app/useLogEntry';
@@ -6,6 +6,7 @@ import { BottomTabBar } from './components/BottomTabBar';
 import { LogEntryForm } from './components/LogEntryForm';
 import { SidebarNav } from './components/SidebarNav';
 import { AccountsPage } from './features/accounts';
+import { SignInPage, useAuth, useLogout } from './features/auth';
 import { CardsPage } from './features/cards';
 import { CategoriesPage } from './features/categories';
 import { EarningsPage } from './features/earnings';
@@ -22,6 +23,11 @@ import './styles/app.css';
 /**
  * The application shell: navigation, the log dialog and the routes.
  *
+ * Nothing inside it renders until the session is known. A guard that let the
+ * pages mount first would fire nine authenticated requests on behalf of
+ * somebody who is not signed in, and flash their empty error states on the way
+ * to the login screen.
+ *
  * Both navigations are always in the tree; which one is visible is decided by
  * the 940px rule in `app.css`, so the breakpoint needs no JavaScript and no
  * component has to know how wide the window is.
@@ -30,8 +36,34 @@ import './styles/app.css';
  * says the count drives the badge and two readings of it could disagree.
  */
 export default function App() {
+  const { isSignedIn, isChecking } = useAuth();
+  const location = useLocation();
+
+  if (isChecking) {
+    // Deliberately bare. Anything richer here is a layout that appears for a
+    // moment and is replaced, which reads as a fault rather than as loading.
+    return <p className="checking">Checking your session…</p>;
+  }
+
+  if (!isSignedIn) {
+    return (
+      <Routes>
+        <Route path="/login" element={<SignInPage mode="LOGIN" />} />
+        <Route path="/register" element={<SignInPage mode="REGISTER" />} />
+        {/* `replace` so the back button does not return to a page that will
+            only bounce again. */}
+        <Route path="*" element={<Navigate to="/login" replace state={{ from: location }} />} />
+      </Routes>
+    );
+  }
+
+  return <SignedInApp />;
+}
+
+function SignedInApp() {
   const { unreadCount } = useNotifications();
   const log = useLogEntry();
+  const signOut = useLogout();
   const setupNav = setupNavWithBadge(unreadCount);
 
   return (
@@ -40,6 +72,9 @@ export default function App() {
         primary={PRIMARY_NAV}
         setup={setupNav}
         onLogEntry={log.openDialog}
+        onSignOut={() => {
+          signOut.mutate();
+        }}
         defaultCurrency={log.defaultCurrency}
         fxUpdatedAt={log.fxUpdatedAt}
       />
@@ -62,6 +97,9 @@ export default function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          {/* Someone who is already signed in has no use for these. */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 

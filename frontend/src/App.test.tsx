@@ -10,9 +10,20 @@ import { server } from './test/server';
 
 const render = (route = '/') => renderWithProviders(<App />, { route });
 
+/**
+ * Renders and waits for the session check to finish.
+ *
+ * The shell no longer exists until someone is signed in (ADR-11), so an
+ * assertion made synchronously would be looking at "Checking your session…".
+ */
+const signedIn = async (route = '/') => {
+  render(route);
+  await screen.findByRole('complementary');
+};
+
 describe('App shell - navigation', () => {
-  it('renders both navigations, so the 940px swap needs no JavaScript', () => {
-    render();
+  it('renders both navigations, so the 940px swap needs no JavaScript', async () => {
+    await signedIn();
 
     // Three landmarks in the tree: the sidebar's Main and Setup, and the tab
     // bar. The stylesheet decides which are offered — no JavaScript reads the
@@ -20,23 +31,23 @@ describe('App shell - navigation', () => {
     expect(screen.getAllByRole('navigation', { hidden: true })).toHaveLength(3);
   });
 
-  it('offers only the sidebar on a wide viewport, never both at once', () => {
-    render();
+  it('offers only the sidebar on a wide viewport, never both at once', async () => {
+    await signedIn();
 
     const offered = screen.getAllByRole('navigation');
     expect(offered.map((nav) => nav.getAttribute('aria-label'))).toEqual(['Main', 'Setup']);
   });
 
-  it('separates what the app is for from what configures it', () => {
-    render();
+  it('separates what the app is for from what configures it', async () => {
+    await signedIn();
 
     const setup = screen.getByRole('navigation', { name: 'Setup' });
     expect(within(setup).getByRole('link', { name: /Accounts/ })).toBeInTheDocument();
     expect(within(setup).queryByRole('link', { name: /Earnings/ })).not.toBeInTheDocument();
   });
 
-  it('carries only the primary destinations in the tab bar', () => {
-    render();
+  it('carries only the primary destinations in the tab bar', async () => {
+    await signedIn();
 
     // Named by class, not by accessible name: a display:none element computes
     // an empty name, so the label cannot be used to reach it at this width.
@@ -46,8 +57,8 @@ describe('App shell - navigation', () => {
     expect(within(tabBar as HTMLElement).getAllByRole('link', { hidden: true })).toHaveLength(4);
   });
 
-  it('lets the shell decide whether the sidebar is shown', () => {
-    render();
+  it('lets the shell decide whether the sidebar is shown', async () => {
+    await signedIn();
 
     // Gotcha 23: visibility is the shell's rule, so the component composes the
     // shell's class rather than hiding itself.
@@ -65,8 +76,8 @@ describe('App shell - navigation', () => {
     });
   });
 
-  it('does not offer Import, which is not built', () => {
-    render();
+  it('does not offer Import, which is not built', async () => {
+    await signedIn();
 
     expect(screen.queryByRole('link', { name: /Import/ })).not.toBeInTheDocument();
   });
@@ -91,7 +102,7 @@ describe('App shell - routes', () => {
 
   it('navigates without a reload when a link is followed', async () => {
     const user = userEvent.setup();
-    render();
+    await signedIn();
 
     await user.click(screen.getAllByRole('link', { name: /Accounts/ })[0] as HTMLElement);
 
@@ -113,7 +124,7 @@ describe('App shell - the notification badge (BR-12)', () => {
 
   it('drops the badge as items are read', async () => {
     const user = userEvent.setup();
-    render('/notifications');
+    await signedIn('/notifications');
 
     await user.click(await screen.findByRole('button', { name: 'Mark all read' }));
 
@@ -126,15 +137,15 @@ describe('App shell - the notification badge (BR-12)', () => {
 describe('App shell - logging an entry', () => {
   it('opens the log dialog from the sidebar', async () => {
     const user = userEvent.setup();
-    render();
+    await signedIn();
 
     await user.click(screen.getByRole('button', { name: '+ Log entry' }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('puts the same action in the phone top bar', () => {
-    render();
+  it('puts the same action in the phone top bar', async () => {
+    await signedIn();
 
     // Hidden at this width, present for the narrow one — logging must not be
     // reachable only from a sidebar that a phone never shows.
@@ -143,7 +154,7 @@ describe('App shell - logging an entry', () => {
 
   it('closes the dialog again', async () => {
     const user = userEvent.setup();
-    render();
+    await signedIn();
 
     await user.click(screen.getByRole('button', { name: '+ Log entry' }));
     await user.click(await screen.findByRole('button', { name: 'Cancel' }));
@@ -162,7 +173,7 @@ describe('App shell - logging an entry', () => {
       }),
     );
     const user = userEvent.setup();
-    render();
+    await signedIn();
 
     await user.click(screen.getByRole('button', { name: '+ Log entry' }));
     const dialog = await screen.findByRole('dialog');
@@ -186,7 +197,7 @@ describe('App shell - logging an entry', () => {
 
   it('offers the real categories and payment methods', async () => {
     const user = userEvent.setup();
-    render();
+    await signedIn();
 
     await user.click(screen.getByRole('button', { name: '+ Log entry' }));
     const dialog = await screen.findByRole('dialog');

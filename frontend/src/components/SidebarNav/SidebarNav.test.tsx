@@ -30,6 +30,7 @@ const show = (path = '/', overrides = {}) =>
         primary={primary}
         setup={setup}
         onLogEntry={vi.fn()}
+        onSignOut={vi.fn()}
         defaultCurrency="EUR"
         fxUpdatedAt="31-08-2026 08:12"
         {...overrides}

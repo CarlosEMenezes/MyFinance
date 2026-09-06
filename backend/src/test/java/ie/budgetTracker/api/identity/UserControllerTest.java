@@ -32,7 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /** The wire shape of `/users/me`, against the frozen contract. */
 @WebMvcTest(UserController.class)
-class UserControllerTest {
+class UserControllerTest extends ie.budgetTracker.api.WebSliceTest {
 
 	@Autowired
 	private MockMvc mvc;
@@ -54,7 +54,8 @@ class UserControllerTest {
 		void statesTheProfileAndPreferences() throws Exception {
 			given(users.profile()).willReturn(UserResponse.from(carlos()));
 
-			mvc.perform(get("/api/v1/users/me"))
+			mvc.perform(get("/api/v1/users/me")
+					.cookie(session()))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.name").value("Carlos Eduardo"))
 					.andExpect(jsonPath("$.payCycle").value("IRREGULAR"))
@@ -69,7 +70,8 @@ class UserControllerTest {
 			// The translation happens once, here, rather than in every consumer.
 			given(users.profile()).willReturn(UserResponse.from(carlos()));
 
-			mvc.perform(get("/api/v1/users/me"))
+			mvc.perform(get("/api/v1/users/me")
+					.cookie(session()))
 					.andExpect(jsonPath("$.dateFormat").value("DD-MM-YYYY"));
 		}
 
@@ -81,7 +83,8 @@ class UserControllerTest {
 					new UserPreferences(true, true, false))));
 
 			// Null is "not said", and an empty string would read as an answer.
-			mvc.perform(get("/api/v1/users/me"))
+			mvc.perform(get("/api/v1/users/me")
+					.cookie(session()))
 					.andExpect(jsonPath("$.age").doesNotExist())
 					.andExpect(jsonPath("$.role").doesNotExist());
 		}
@@ -96,6 +99,7 @@ class UserControllerTest {
 			given(users.update(any(UpdateUserRequest.class))).willReturn(UserResponse.from(carlos()));
 
 			mvc.perform(patch("/api/v1/users/me")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"Ada Lovelace"}"""))
@@ -118,6 +122,7 @@ class UserControllerTest {
 			given(users.update(any(UpdateUserRequest.class))).willReturn(UserResponse.from(carlos()));
 
 			mvc.perform(patch("/api/v1/users/me")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"age":null}"""))
@@ -136,6 +141,7 @@ class UserControllerTest {
 		@Test
 		void refusesAnImplausibleAge() throws Exception {
 			mvc.perform(patch("/api/v1/users/me")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"age":900}"""))
@@ -147,6 +153,7 @@ class UserControllerTest {
 			given(users.update(any(UpdateUserRequest.class))).willReturn(UserResponse.from(carlos()));
 
 			mvc.perform(patch("/api/v1/users/me")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"dateFormat":"YYYY-MM-DD"}"""))

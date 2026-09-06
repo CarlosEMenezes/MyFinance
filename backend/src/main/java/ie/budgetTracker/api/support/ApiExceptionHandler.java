@@ -29,6 +29,7 @@ class ApiExceptionHandler {
 		HttpStatus status = switch (exception.kind()) {
 			case NOT_FOUND -> HttpStatus.NOT_FOUND;
 			case CONFLICT -> HttpStatus.CONFLICT;
+			case UNAUTHORISED -> HttpStatus.UNAUTHORIZED;
 		};
 
 		ProblemDetail problem = ProblemDetail.forStatus(status);

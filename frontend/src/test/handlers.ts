@@ -42,6 +42,17 @@ let currentDashboard: Dashboard = dashboard;
 let notificationQueue: Notification[] = [...notifications];
 let settings: NotificationSettings = notificationSettings;
 let currentUser: User = user;
+/**
+ * ADR-11: a real session is an HttpOnly cookie the tests cannot read, so the
+ * fake backend keeps a flag instead. What matters for the frontend's tests is
+ * whether /users/me answers 401, and that is exactly what this decides.
+ */
+let signedIn = true;
+
+/** Lets a test start from a signed-out browser. */
+export function signOutInTests(): void {
+  signedIn = false;
+}
 /** Only the count is needed: the ids a fake backend hands out must not repeat. */
 let loggedTransactions: string[] = [];
 
@@ -55,6 +66,7 @@ export function resetApiState(): void {
   settings = notificationSettings;
   currentUser = user;
   loggedTransactions = [];
+  signedIn = true;
 }
 
 function newTransactionId(): string {
@@ -180,7 +192,31 @@ export const handlers = [
   }),
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
   http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
-  http.get(`${API_BASE}/users/me`, () => HttpResponse.json(currentUser)),
+  http.get(`${API_BASE}/users/me`, () =>
+    signedIn ? HttpResponse.json(currentUser) : problem(401, 'Not signed in'),
+  ),
+
+  http.post(`${API_BASE}/auth/register`, async ({ request }) => {
+    const body = (await request.json()) as { email: string; name: string };
+    currentUser = { ...currentUser, name: body.name };
+    signedIn = true;
+    return HttpResponse.json(currentUser, { status: 201 });
+  }),
+
+  http.post(`${API_BASE}/auth/login`, async ({ request }) => {
+    const body = (await request.json()) as { email: string; password: string };
+    // One wrong password to test against, and the same message either way.
+    if (body.password === 'wrong-password') {
+      return problem(401, 'That email address and password do not match');
+    }
+    signedIn = true;
+    return HttpResponse.json(currentUser);
+  }),
+
+  http.post(`${API_BASE}/auth/logout`, () => {
+    signedIn = false;
+    return new HttpResponse(null, { status: 204 });
+  }),
 
   http.post(`${API_BASE}/transactions`, async ({ request }) => {
     const body = (await request.json()) as CreateTransactionRequest;

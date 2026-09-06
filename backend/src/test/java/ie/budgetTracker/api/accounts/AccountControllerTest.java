@@ -40,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * has been passing its own tests for weeks.
  */
 @WebMvcTest(AccountController.class)
-class AccountControllerTest {
+class AccountControllerTest extends ie.budgetTracker.api.WebSliceTest {
 
 	private static final UUID SAVINGS_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
 
@@ -64,7 +64,8 @@ class AccountControllerTest {
 		void statesMoneyInMinorUnits() throws Exception {
 			given(accounts.list()).willReturn(List.of(savings()));
 
-			mvc.perform(get("/api/v1/accounts"))
+			mvc.perform(get("/api/v1/accounts")
+					.cookie(session()))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$[0].name").value("AIB Savings"))
 					.andExpect(jsonPath("$[0].kind").value("SAVINGS"))
@@ -80,7 +81,8 @@ class AccountControllerTest {
 
 			// BR-13: the payload carries the account balance and the pockets inside
 			// it, and no figure that is the two added together.
-			mvc.perform(get("/api/v1/accounts"))
+			mvc.perform(get("/api/v1/accounts")
+					.cookie(session()))
 					.andExpect(jsonPath("$[0].balance").value(145000))
 					.andExpect(jsonPath("$[0].pockets[0].name").value("MacBook Air M4"))
 					.andExpect(jsonPath("$[0].pockets[0].balance").value(41000))
@@ -91,7 +93,8 @@ class AccountControllerTest {
 		void answersAnEmptyListRatherThanNothing() throws Exception {
 			given(accounts.list()).willReturn(List.of());
 
-			mvc.perform(get("/api/v1/accounts"))
+			mvc.perform(get("/api/v1/accounts")
+					.cookie(session()))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$").isArray())
 					.andExpect(jsonPath("$").isEmpty());
@@ -109,6 +112,7 @@ class AccountControllerTest {
 							AccountKind.CASH, of("120.00"), Currency.EUR, true, null, List.of())));
 
 			mvc.perform(post("/api/v1/accounts")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"Wallet","kind":"CASH","balance":12000,"currency":"EUR",
@@ -122,6 +126,7 @@ class AccountControllerTest {
 			// Spec §4: a 400 carries the list of what was wrong, because a form
 			// told only "invalid" has to guess which field it was.
 			mvc.perform(post("/api/v1/accounts")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"","kind":"CASH","balance":0,"currency":"EUR","includeInTotals":true}"""))
@@ -136,6 +141,7 @@ class AccountControllerTest {
 					.given(accounts).create(any(CreateAccountRequest.class));
 
 			mvc.perform(post("/api/v1/accounts")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"Wallet","kind":"CASH","balance":0,"currency":"EUR","includeInTotals":true}"""))
@@ -158,6 +164,7 @@ class AccountControllerTest {
 			// What changed is the account's composition, not its balance, and the
 			// response says so by being the account.
 			mvc.perform(post("/api/v1/accounts/" + SAVINGS_ID + "/pockets")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"MacBook Air M4","balance":41000}"""))
@@ -173,6 +180,7 @@ class AccountControllerTest {
 					.given(accounts).addPocket(any(), any(CreatePocketRequest.class));
 
 			mvc.perform(post("/api/v1/accounts/" + SAVINGS_ID + "/pockets")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"MacBook Air M4","balance":41000}"""))
@@ -183,6 +191,7 @@ class AccountControllerTest {
 		@Test
 		void refusesANegativePocketBalance() throws Exception {
 			mvc.perform(post("/api/v1/accounts/" + SAVINGS_ID + "/pockets")
+					.cookie(session())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{"name":"MacBook Air M4","balance":-100}"""))

@@ -36,6 +36,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
@@ -76,6 +81,11 @@
 		<!-- Boot 4 split the test slices into per-technology modules, exactly as
 		     it did the auto-configuration (see CLAUDE.md gotcha 10). Without
 		     these, @DataJpaTest and @WebMvcTest simply do not resolve. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-data-jpa-test</artifactId>

@@ -29,6 +29,15 @@ public class UserEntity {
 	@Id
 	private UUID id;
 
+	/** Lower-cased before it gets here, so the unique index means what it says. */
+	private String email;
+
+	@Column(name = "password_hash")
+	private String passwordHash;
+
+	@Column(name = "created_at")
+	private java.time.Instant createdAt;
+
 	private String name;
 
 	private Integer age;
@@ -71,6 +80,25 @@ public class UserEntity {
 		entity.id = user.id();
 		entity.apply(user);
 		return entity;
+	}
+
+	static UserEntity registering(String email, String passwordHash, User profile,
+			java.time.Instant now) {
+		UserEntity entity = new UserEntity();
+		entity.id = UUID.randomUUID();
+		entity.email = email;
+		entity.passwordHash = passwordHash;
+		entity.createdAt = now;
+		entity.apply(profile);
+		return entity;
+	}
+
+	String getEmail() {
+		return email;
+	}
+
+	String getPasswordHash() {
+		return passwordHash;
 	}
 
 	void apply(User user) {

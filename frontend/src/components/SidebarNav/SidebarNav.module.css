@@ -107,3 +107,11 @@
   line-height: 1.5;
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
+
+/* Below the FX line, with the account details rather than among the pages:
+   signing out is something you do to the session, not somewhere you go. */
+.signOut {
+  width: 100%;
+  margin-top: var(--space-3);
+  font-size: 12px;
+}

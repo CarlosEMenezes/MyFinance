@@ -13,7 +13,9 @@ public class AppException extends RuntimeException {
 		/** 404: the thing asked for does not exist. */
 		NOT_FOUND,
 		/** 409: it exists, but the rule says no. */
-		CONFLICT
+		CONFLICT,
+		/** 401: who you are could not be established. */
+		UNAUTHORISED
 	}
 
 	private final transient Kind kind;
@@ -33,5 +35,9 @@ public class AppException extends RuntimeException {
 
 	public static AppException conflict(String why) {
 		return new AppException(Kind.CONFLICT, why);
+	}
+
+	public static AppException unauthorised(String why) {
+		return new AppException(Kind.UNAUTHORISED, why);
 	}
 }

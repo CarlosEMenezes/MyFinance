@@ -7,11 +7,21 @@ import java.util.List;
 import java.util.UUID;
 
 import ie.budgetTracker.application.accounts.AccountRepository;
+import ie.budgetTracker.application.auth.CredentialsRepository;
 import ie.budgetTracker.domain.accounts.Account;
 import ie.budgetTracker.domain.accounts.AccountKind;
+import ie.budgetTracker.domain.identity.DateFormatPreference;
+import ie.budgetTracker.domain.identity.PayCycle;
+import ie.budgetTracker.domain.identity.User;
+import ie.budgetTracker.domain.identity.UserPreferences;
+import ie.budgetTracker.domain.identity.WeekStart;
 import ie.budgetTracker.domain.money.Currency;
+import java.time.Clock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -24,18 +34,42 @@ import org.springframework.test.context.TestPropertySource;
  * schema, so what is tested is the table the application will actually meet.
  */
 @DataJpaTest
-@Import({ JpaAccountRepository.class, JpaUserRepository.class })
+@Import({ JpaAccountRepository.class, JpaCredentialsRepository.class,
+		AccountPersistenceTest.Time.class })
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=validate")
 class AccountPersistenceTest {
 
-	/** The row V3__seed_single_user.sql inserts. */
-	private static final UUID SEEDED_USER = UUID.fromString("00000000-0000-4000-8000-000000000001");
+	@TestConfiguration
+	static class Time {
+		@Bean
+		Clock clock() {
+			return Clock.systemUTC();
+		}
+	}
 
 	@Autowired
 	private AccountRepository accounts;
 
+	@Autowired
+	private CredentialsRepository credentials;
+
+	private UUID owner;
+
+	@BeforeEach
+	void registerAnOwner() {
+		// Real users now, because V4 removed the seeded placeholder. Every account
+		// belongs to somebody, and the schema will not accept one that does not.
+		owner = register("owner@example.com");
+	}
+
+	private UUID register(String email) {
+		return credentials.register(email, "{noop}irrelevant", new User(null, "Someone", null, null,
+				null, PayCycle.IRREGULAR, Currency.EUR, DateFormatPreference.DD_MM_YYYY,
+				WeekStart.MONDAY, new UserPreferences(true, true, false))).id();
+	}
+
 	private Account newAccount(String name, String balance, boolean includeInTotals) {
-		return accounts.create(SEEDED_USER, new Account(null, name, AccountKind.BANK,
+		return accounts.create(owner, new Account(null, name, AccountKind.BANK,
 				of(balance), Currency.EUR, includeInTotals, null, List.of()));
 	}
 
@@ -44,7 +78,7 @@ class AccountPersistenceTest {
 	void storesAnAccount() {
 		newAccount("Revolut Current", "842.30", true);
 
-		assertThat(accounts.findAllForUser(SEEDED_USER))
+		assertThat(accounts.findAllForUser(owner))
 				.singleElement()
 				.satisfies(account -> {
 					assertThat(account.name()).isEqualTo("Revolut Current");
@@ -57,8 +91,11 @@ class AccountPersistenceTest {
 	@DisplayName("keeps accounts belonging to another user out of the list")
 	void isolatesUsers() {
 		newAccount("Revolut Current", "842.30", true);
+		UUID someoneElse = register("someone-else@example.com");
 
-		assertThat(accounts.findAllForUser(UUID.randomUUID())).isEmpty();
+		// ADR-11: the filter is the only thing separating two people's money, so
+		// it is asserted against a real second user rather than a made-up id.
+		assertThat(accounts.findAllForUser(someoneElse)).isEmpty();
 	}
 
 	@Test
@@ -93,8 +130,8 @@ class AccountPersistenceTest {
 	void findsOneForItsOwner() {
 		Account wallet = newAccount("Wallet", "120", true);
 
-		assertThat(accounts.findForUser(SEEDED_USER, wallet.id())).isPresent();
-		assertThat(accounts.findForUser(UUID.randomUUID(), wallet.id())).isEmpty();
+		assertThat(accounts.findForUser(owner, wallet.id())).isPresent();
+		assertThat(accounts.findForUser(register("nosy@example.com"), wallet.id())).isEmpty();
 	}
 
 	@Test
@@ -102,7 +139,7 @@ class AccountPersistenceTest {
 	void remembersAnExcludedAccount() {
 		newAccount("Old ISA", "5000", false);
 
-		assertThat(accounts.findAllForUser(SEEDED_USER)).singleElement()
+		assertThat(accounts.findAllForUser(owner)).singleElement()
 				.satisfies(account -> assertThat(account.includeInTotals()).isFalse());
 	}
 }

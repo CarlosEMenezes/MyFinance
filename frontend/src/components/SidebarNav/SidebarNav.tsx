@@ -42,6 +42,7 @@ export function SidebarNav({
   primary,
   setup,
   onLogEntry,
+  onSignOut,
   defaultCurrency,
   fxUpdatedAt,
 }: SidebarNavProps) {
@@ -74,6 +75,13 @@ export function SidebarNav({
           <br />
           Live FX updated {fxUpdatedAt}
         </p>
+        <button
+          type="button"
+          className={['btn', 'btn-ghost', styles.signOut].join(' ')}
+          onClick={onSignOut}
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );
