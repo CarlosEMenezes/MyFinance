@@ -250,10 +250,20 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 **Phase 2 exists and is specified (spec §6.1–§6.3): tags/recurrence, sheet import, transaction detection, then identity hardening and Open Finance. It begins only when step 11 is done and the app runs end to end. Nothing from BR-16–BR-25 is implemented.**
 **The frontend is done. Everything remaining is backend.**
 
-1. **Extract `docs/business-rule-vectors.md`** — the numeric vectors the TypeScript tests already assert (the €399 / 6 × €71.50 plan at 28.5% APR, the credit-union loan settling at €2,029.59 with €220.01 saved, August 2026 holding five weekly paydays). Both implementations then cite one source, which is the only thing that stops them drifting.
-2. **Java domain services first**, pure and unit-tested against those identical vectors: `MoneyCalculator`, `StatementCycleCalculator`, `InstalmentCalculator`, `LoanCalculator`, `PositionCalculator`, `PlanNormaliser`, `GoalCalculator`, `DuePaymentQueue`.
-3. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
-4. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
+### In progress — the Java domain, tested against the shared vectors
+- [x] **[docs/business-rule-vectors.md](docs/business-rule-vectors.md)** — the numbers both implementations cite. Extracted from the TypeScript tests, which already asserted every one of them. **A vector there is not an example, it is the assertion**; when a Java test and its TypeScript counterpart disagree, one has drifted from that file and the file is right.
+- [x] **`MoneyCalculator`** — BigDecimal scale 2 HALF_UP, which is exactly what the frontend's digit-string parser does. `0.005 → 0.01` and `-0.005 → -0.01` on both sides.
+- [x] **`Frequency`** — BR-17's narrow vocabulary, 52/26/12. Carries both `periodsPerYear` (BR-6's compounding) and `periodsPerMonth` (BR-3's average), named so the two cannot be mistaken for each other.
+- [x] **`StatementCycleCalculator`** — BR-4, the 16-row vector table green on the first run. Cycle days validated to 1–28 in `StatementCycle` itself, so nothing downstream ever asks what happens on the 31st of February.
+- [x] **`InstalmentCalculator`** — BR-6. Tolerance checked **before** the solver, bisection on the annuity identity, APR compounded by frequency. Agrees with the TypeScript solver to 8 decimal places.
+- [x] **`LoanCalculator`** — BR-7. Reuses BR-6's solver rather than copying it, and adds the settlement figure and the early-payoff saving. Credit-union loan settles at €2,029.59 saving €220.01, to the cent.
+- [ ] `PlanNormaliser` (BR-10, BR-3) → `GoalCalculator` (BR-11) → `VarianceCalculator` (BR-9) → `PositionCalculator` (BR-1, BR-2) → `DuePaymentQueue` (BR-12).
+
+**`./mvnw verify` green — 101 tests, ArchUnit and JaCoCo floors held.**
+
+### Then
+1. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
+2. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
 
 The prototype's `DCLogic` class is the reference implementation for the business rules; [docs/design-reference.md](docs/design-reference.md) maps each rule to its line number in the handoff bundle.
 
@@ -289,6 +299,7 @@ Things discovered the hard way. Never rediscover these.
 26. **A hint inside a `<label>` becomes part of the field's accessible name.** `getByLabelText('Default currency')` could not find a select whose label also wrapped "Every total is stated in this…", because the announced name was the whole paragraph. A hint *describes*, it does not *name*: put it outside the label and wire it with `aria-describedby`.
 27. **A `display:none` element has no accessible name.** `getAllByRole('navigation', { name: 'Main', hidden: true })` finds one nav, not two: `hidden: true` admits the element but the accname algorithm still computes `''` for it. Reach a hidden landmark by role and class, not by label — and note the corollary, that `css: true` in the Vitest config means jsdom really does apply `app.css`, so the 940px rules are live in tests.
 28. **A grid item's `min-width` is `auto`, so `1fr` does not mean "share the space".** A long option label or a wide input pushed a `1fr` column past its track and the log dialog scrolled sideways on every keystroke. Every grid or flex container holding a form control needs `> * { min-width: 0 }`. The same dialog also jittered because a scrollbar appearing and disappearing reflowed the content: `scrollbar-gutter: stable` on the scrolling element, and scroll the *body*, not the box — the blueprint corner marks are drawn outside it and a scroll container clips them.
+30. **The ArchUnit float ban covers record components, and constants.** `noFieldIsAFloatingPointNumber` failed on BR-6's bisection bracket (`private static final double HIGHEST_RATE`) and would fail on any `double` in a record. Locals, parameters and return types are fine — the solver works in `double` internally. Anything that is *state* is a `BigDecimal`, converted at the boundary. This is right, not an obstacle: a rate serialised from a `double` carries its binary representation across the wire.
 29. **`list-style: none` does not remove the list's padding.** The browser's `padding-inline-start: 40px` survives it, which is what pushed the instalment figures out of the dialog. Always pair it with `padding-left: 0`.
 25. **`vi.useFakeTimers()` freezes MSW.** Faking the whole event loop stops `fetch` ever resolving, so every test in the file times out at 5s. Fake only the clock: `vi.useFakeTimers({ toFake: ['Date'] })`.
 24. **A stateful fake backend, or every optimistic update looks broken.** The MSW handlers remember writes and are reset between tests. A handler that accepts a `PATCH` and then serves the original row again makes an optimistic update flash the new figure and revert on refetch — which is indistinguishable from a real rollback bug.
