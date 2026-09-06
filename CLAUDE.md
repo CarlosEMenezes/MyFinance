@@ -141,6 +141,7 @@ Each rule has at least one test **named after it**, referencing the BR number.
 | **ADR-4** | PostgreSQL + Flyway, replacing MySQL + `ddl-auto=update` | Spec §4. `ddl-auto=update` leaves the schema unversioned and undoes reproducibility. |
 | **ADR-5** | Hexagonal layering enforced by ArchUnit from day one | Spec §4. Cheap to add now, near-impossible to retrofit. **Amended once:** `whereLayer(DOMAIN).mayOnlyBeAccessedByLayers(...)` now admits `INFRASTRUCTURE` as well as `APPLICATION`. A repository port is declared in the application layer *in terms of the domain model* — that is what makes it a port — so the adapter implementing it cannot avoid naming those types, and the rule without it made the design spec §4 describes unimplementable. `API` is still excluded, and that exclusion is what moved the wire DTOs into `application/**/dto`, where they belong: the frozen contract is no longer wired straight onto domain enums. `domainDependsOnNothingInThisApplication` is untouched and is what actually protects the domain. |
 | **ADR-6** | Money: `BigDecimal` scale 2 HALF_UP in Java, integer **minor units** in TS | Spec §0.5. No `double`/`float`/JS `number` for money arithmetic, ever. |
+| **ADR-12** | The nine pages were built **first**, against the frozen `frontend/src/types/api.ts`; the backend follows behind it, satisfying it. Deviates from spec §6's vertical slices | The churn vertical slicing prevents is pages built against an invented API shape. Freezing the contract before any page existed prevents the same churn by a different route — verified, not assumed: zero pages existed and exactly one component (`CardSummary`) leaked a business rule, which was refactored to take server-supplied dates as props. The cost is two implementations of BR-4/6/7/9/10/11; the mitigation is that both cite [docs/business-rule-vectors.md](docs/business-rule-vectors.md) and **neither may be edited to agree with the other, only with it**. Full note: [docs/adr/0012-frontend-first-against-a-frozen-contract.md](docs/adr/0012-frontend-first-against-a-frozen-contract.md) |
 
 ---
 
@@ -171,6 +172,19 @@ Enforced by JaCoCo (`check` bound to `verify`) and Vitest `coverage.thresholds`.
 ---
 
 ## 7. Done / In progress / Next
+
+**The build order, stated once so the checklist below is not the only record of it.**
+This project was built in **two stages, not eleven vertical slices**: the whole
+frontend first, against the frozen contract in `frontend/src/types/api.ts`, and
+then the whole backend behind it, one feature at a time, satisfying that same
+contract. That deviates from spec §6 deliberately — **ADR-12** and the paragraph
+appended to spec §6 record why, what it costs and what holds the two sides
+together. Read them before adding a step in either direction.
+
+Where the two stages meet: the frontend is finished and must not be touched
+while a backend slice is being built. Until the final swap, `git diff
+--name-only` should show nothing under `frontend/src`.
+
 
 ### Done — §6 step 1, Foundation
 - Imported the Claude Design handoff bundle and read every file in it.
@@ -281,8 +295,33 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 
 **Still not built, and the app must not be exposed publicly until it is:** spec §6.2's TOTP, recovery codes, rate limiting on the auth endpoints, and password reset. BCrypt is in use via `DelegatingPasswordEncoder`, so §6.2's Argon2id is a change of default that re-hashes on next sign-in rather than a forced reset.
 
-### Then
-1. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
+### Then — what happens when
+
+Each row is triggered by the row above being finished. Nothing here is started early.
+
+| Trigger | Work |
+|---|---|
+| **Now** | Cards → Categories & plan → Transactions → Financing → Dashboard → Goals → Notifications. One feature per commit, in that order, each following the eight steps below. |
+| **Once every endpoint is live** | **Swap the fake API for the real one.** Delete `frontend/src/test/handlers.ts`, set `VITE_USE_MOCK_API=false`, and confirm every page renders the same figures it did against fixtures. Any difference is a drift bug the shared vectors should have caught. |
+| **Step 11 (Hardening) begins** | Write the **Phase 1.5** amendment — settled, deliberately unwritten until here so it is specified against a working app: **BR-26** offline is read-only and limited to the cached `GET /dashboard` payload, writes refused with a clear message; **BR-27** signing out wipes the cache; §0.7 extended to cover the cached payload; §6 gains Phase 1.5; §5 gains `StaleDataNotice`, non-dismissible and persisting until fresh data arrives. **BR numbering is append-only**; §4 of this file updated in the same commit. |
+| **Step 11** | Playwright journeys for the five critical flows, performance pass, accessibility audit, documentation — including the offline cache just specified. |
+| **Before any public exposure** | Finish spec §6.2: TOTP, ten single-use recovery codes, rate limiting on the auth endpoints, password reset, and **Argon2id as the `DelegatingPasswordEncoder` default** — which re-hashes on next sign-in rather than forcing a reset. |
+| **After step 11** | Phase 2 (§6.1): tags and recurrence → sheet import → detection. **Nothing from BR-16–BR-25 before this point.** |
+
+### How each remaining backend slice is built
+
+In this order, every time. The two-user isolation test is not optional per slice: per ADR-11 it is the only one of the three isolation mechanisms that fails loudly when the other two are got wrong.
+
+1. **Flyway migration** — a new `V{n}__{feature}.sql`. Never edit an applied one. One column per `ALTER TABLE` (gotcha 35).
+2. **JPA entity + Spring Data repository** in `infrastructure`; the **port interface** in `application`.
+3. **`@DataJpaTest`** against the real migrations on H2, **including a two-user isolation test**.
+4. **Application service** with the port mocked, exercising the domain calculators.
+5. **DTOs in `application/**/dto`** — never in `api`. The dependency rule forbids `api` reaching the domain, which is what put them there, and it keeps the frozen contract off domain enums.
+6. **Controller** — pure HTTP, no domain import at all.
+7. **`@WebMvcTest` extending `WebSliceTest`**, so the slice runs the real security chain rather than Boot's default (gotcha 33).
+8. **Testcontainers integration test** for the slice end to end.
+
+Non-negotiable throughout: the contract is frozen (`types/api.ts` — money as integer minor units, dates as ISO `YYYY-MM-DD`; if a DTO cannot match it, **stop and say so** rather than changing the frontend); no entity is ever exposed directly; another user's row answers **404, never 403**; RFC 7807 problem bodies with a `title` worth showing a person (400 with field-level errors, 404 unknown id, 409 domain-rule violation); every rendered figure computed server-side (ADR-7).
 
 The prototype's `DCLogic` class is the reference implementation for the business rules; [docs/design-reference.md](docs/design-reference.md) maps each rule to its line number in the handoff bundle.
 
@@ -293,6 +332,7 @@ The prototype's `DCLogic` class is the reference implementation for the business
 Things discovered the hard way. Never rediscover these.
 
 1. **`RecurrenceFrequency` must never reach `periodsPerYear`.** BR-17 keeps two frequency vocabularies apart. `periodsPerYear` is defined for 52/26/12 only; a `DAILY` or `YEARLY` value would return `undefined` and produce a meaningless APR from BR-6's solver. Instalment plans and loans take BR-6's `Frequency`; recurrence rules take `RecurrenceFrequency`. Do not widen the shared type to "simplify".
+1. **MSW handlers are the contract standing in for the backend, not a second backend.** `frontend/src/test/handlers.ts` exists because the pages were written before the API (ADR-12). It is **deleted when the real API lands, never extended**. A handler answering something `types/api.ts` does not promise is a page inventing an endpoint, and the moment that is allowed the frozen contract stops meaning anything. If a page needs a field, add it to `types/api.ts` and to the backend DTO — in that order.
 1. **`DetectedTransaction` must never be called `Notification`.** BR-12's `Notification` is *derived, outbound, future money*. A detection is *stored, inbound, money already moved*. Different type, different table, different name. Reusing the name would put an inbox and an outbox in one model.
 1. **A tag on a Goal must never write to `savedAmount`.** BR-18 makes tags organisational only. BR-11's `savedAmount` has exactly one source of truth; auto-allocation would make a tag a second, and change BR-11's arithmetic without changing BR-11.
 1. **The backend never compiled.** `BudgetTrackerController` declared `List<User> getAllUsers()` and `User getUserById(Long)` with **empty bodies** — a hard "missing return statement" error. Every `model/`, `repository/` and `dto/` class was an empty stub, and the repositories were plain **classes**, not `JpaRepository` interfaces. Nothing was salvageable but the Maven shell.

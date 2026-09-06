@@ -564,6 +564,19 @@ module, and every existing BR-10 test must remain green and unmodified.
 
 At each step: tests first, one component per folder, `CLAUDE.md` updated, commit, then move on.
 
+**How steps 2–10 were actually built.** These steps describe vertical slices,
+each cutting through domain, persistence, API and UI together. They were
+implemented instead as a complete frontend against a frozen contract, followed
+by a complete backend satisfying it. `frontend/src/types/api.ts` **is** that
+contract: it was derived from §2 and §4 before any page existed, and no page may
+be written against a shape it does not promise. The Java domain services of §4
+and the TypeScript `lib/` modules of §5 are held numerically identical by
+`docs/business-rule-vectors.md`, which both sides cite and neither side may be
+edited away from. The reasoning, the cost and the mitigation are recorded in
+`docs/adr/0012-frontend-first-against-a-frozen-contract.md`. This changes the
+order of the work, not its content: every step's rules, tests and deliverables
+stand exactly as written above.
+
 ## 6.1 Phase 2 — reducing manual entry
 
 Begins only when steps 1–11 are complete and the app is running end to end.
