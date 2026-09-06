@@ -257,9 +257,12 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 - [x] **`StatementCycleCalculator`** — BR-4, the 16-row vector table green on the first run. Cycle days validated to 1–28 in `StatementCycle` itself, so nothing downstream ever asks what happens on the 31st of February.
 - [x] **`InstalmentCalculator`** — BR-6. Tolerance checked **before** the solver, bisection on the annuity identity, APR compounded by frequency. Agrees with the TypeScript solver to 8 decimal places.
 - [x] **`LoanCalculator`** — BR-7. Reuses BR-6's solver rather than copying it, and adds the settlement figure and the early-payoff saving. Credit-union loan settles at €2,029.59 saving €220.01, to the cent.
-- [ ] `PlanNormaliser` (BR-10, BR-3) → `GoalCalculator` (BR-11) → `VarianceCalculator` (BR-9) → `PositionCalculator` (BR-1, BR-2) → `DuePaymentQueue` (BR-12).
+- [x] **`PlanNormaliser`** — BR-10 counted on real dates: a month holding five paydays plans five. Monthly occurrences are computed from the *original* anchor each time, never by stepping from an already-clamped one, so 31 Jan → 28 Feb → **31** Mar.
+- [x] **`VarianceCalculator`** — BR-9. `real − planned` for both kinds, only the tone differs, so a column of variances can be summed without asking what kind each row is.
+- [x] **`GoalCalculator`** — BR-11. The horizon is months multiplied out (daily 30.4, weekly 4.33), deliberately *not* BR-10's real-date counting: a goal has no anchor date, so counting calendar contributions would answer a question nobody asked. `ContributionFrequency` is its own enum for the same reason BR-17 keeps vocabularies apart — it carries DAILY, which has no meaningful `periodsPerYear`.
+- [ ] `PositionCalculator` (BR-1, BR-2) → `DuePaymentQueue` (BR-12).
 
-**`./mvnw verify` green — 101 tests, ArchUnit and JaCoCo floors held.**
+**`./mvnw verify` green — 161 tests, ArchUnit and JaCoCo floors held.**
 
 ### Then
 1. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
