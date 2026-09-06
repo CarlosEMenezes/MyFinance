@@ -32,7 +32,21 @@ class HexagonalArchitectureTest {
 			.whereLayer(API).mayNotBeAccessedByAnyLayer()
 			.whereLayer(INFRASTRUCTURE).mayNotBeAccessedByAnyLayer()
 			.whereLayer(APPLICATION).mayOnlyBeAccessedByLayers(API, INFRASTRUCTURE)
-			.whereLayer(DOMAIN).mayOnlyBeAccessedByLayers(APPLICATION);
+			// INFRASTRUCTURE is here deliberately, and this is a change to a rule
+			// rather than a loosening to make code pass. A repository port is
+			// declared in the application layer *in terms of the domain model* -
+			// that is what makes it a port rather than a data-access interface -
+			// so the adapter implementing it cannot avoid naming those types. The
+			// rule without INFRASTRUCTURE makes the design spec §4 describes
+			// unimplementable.
+			//
+			// API is NOT here. It has no business reaching past the application
+			// layer, and keeping it out is what stopped a frozen wire contract from
+			// being wired straight onto domain enums: the DTOs moved to
+			// `application/**/dto` because of this rule, and are better placed for
+			// it. What actually protects the domain is
+			// `domainDependsOnNothingInThisApplication`, which is untouched.
+			.whereLayer(DOMAIN).mayOnlyBeAccessedByLayers(APPLICATION, INFRASTRUCTURE);
 
 	@ArchTest
 	static final ArchRule domainDependsOnNothingInThisApplication = noClasses()

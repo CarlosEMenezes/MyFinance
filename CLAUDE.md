@@ -138,7 +138,7 @@ Each rule has at least one test **named after it**, referencing the BR number.
 | **ADR-10** | **No social sign-in and no SMS 2FA.** TOTP (RFC 6238) with ten single-use recovery codes | Social sign-in does not reduce the security work, and linking an email signup to a provider on the same address is a takeover vector for no product gain. SMS costs per message and is the weakest common factor (spec §6.2) |
 | **ADR-7** | The frontend may compute a figure the user has **not saved yet**; anything the server returns is rendered, never recomputed | Resolves spec §5's "no business calculation in the frontend" against its own what-if exception. [docs/adr/0007-business-rule-boundary.md](docs/adr/0007-business-rule-boundary.md) |
 | **ADR-4** | PostgreSQL + Flyway, replacing MySQL + `ddl-auto=update` | Spec §4. `ddl-auto=update` leaves the schema unversioned and undoes reproducibility. |
-| **ADR-5** | Hexagonal layering enforced by ArchUnit from day one | Spec §4. Cheap to add now, near-impossible to retrofit. |
+| **ADR-5** | Hexagonal layering enforced by ArchUnit from day one | Spec §4. Cheap to add now, near-impossible to retrofit. **Amended once:** `whereLayer(DOMAIN).mayOnlyBeAccessedByLayers(...)` now admits `INFRASTRUCTURE` as well as `APPLICATION`. A repository port is declared in the application layer *in terms of the domain model* — that is what makes it a port — so the adapter implementing it cannot avoid naming those types, and the rule without it made the design spec §4 describes unimplementable. `API` is still excluded, and that exclusion is what moved the wire DTOs into `application/**/dto`, where they belong: the frozen contract is no longer wired straight onto domain enums. `domainDependsOnNothingInThisApplication` is untouched and is what actually protects the domain. |
 | **ADR-6** | Money: `BigDecimal` scale 2 HALF_UP in Java, integer **minor units** in TS | Spec §0.5. No `double`/`float`/JS `number` for money arithmetic, ever. |
 
 ---
@@ -265,9 +265,18 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 
 **The domain layer is complete: `./mvnw verify` green — 185 tests, ArchUnit and JaCoCo floors held.**
 
+### In progress — persistence and the API, per feature
+- [x] **Schema** — `V2__identity_and_accounts.sql`. Money is `NUMERIC(19,2)`, so the database cannot hold a third decimal place that rounding would later have to invent an answer for. A pocket's foreign key is not optional: there is no such thing as a free-floating pocket, so the schema makes one unwriteable.
+- [x] **`/users/me`** — GET and PATCH. Every field optional, because Settings saves one at a time.
+- [x] **`/accounts`, `/accounts/{id}/pockets`** — BR-13 end to end, with `@DataJpaTest` against the real migrations on H2 and `@WebMvcTest` against the frozen wire shape.
+- [ ] Cards (§6 step 4) → Categories → Transactions → Financing → Dashboard → Goals → Notifications.
+
+**`./mvnw verify` green — 241 tests.**
+
+**Auth is not built, and that is a gap rather than a decision.** Spec §6 step 2 pairs identity with auth; the frontend's ten pages include no sign-in screen to build it against, and §6.2 specifies the real thing (Argon2id, TOTP, ten recovery codes, rate limiting) properly. `CurrentUser` is a port with a single-user adapter and `V3__seed_single_user.sql` behind it, so auth replaces one class rather than threading a user id through every call site. **The app must not be exposed publicly until that is done.**
+
 ### Then
-1. **Persistence and API per feature** (§6 steps 2–10): Flyway migration → JPA adapter → application service → controller returning the DTOs `frontend/src/types/api.ts` already froze, with Testcontainers integration tests.
-2. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
+1. **Swap the fake API for the real one** — `VITE_USE_MOCK_API=false`, because both sides speak the same contract. Any figure that differs is a drift bug the shared vectors should have caught.
 
 The prototype's `DCLogic` class is the reference implementation for the business rules; [docs/design-reference.md](docs/design-reference.md) maps each rule to its line number in the handoff bundle.
 
@@ -303,6 +312,8 @@ Things discovered the hard way. Never rediscover these.
 26. **A hint inside a `<label>` becomes part of the field's accessible name.** `getByLabelText('Default currency')` could not find a select whose label also wrapped "Every total is stated in this…", because the announced name was the whole paragraph. A hint *describes*, it does not *name*: put it outside the label and wire it with `aria-describedby`.
 27. **A `display:none` element has no accessible name.** `getAllByRole('navigation', { name: 'Main', hidden: true })` finds one nav, not two: `hidden: true` admits the element but the accname algorithm still computes `''` for it. Reach a hidden landmark by role and class, not by label — and note the corollary, that `css: true` in the Vitest config means jsdom really does apply `app.css`, so the 940px rules are live in tests.
 28. **A grid item's `min-width` is `auto`, so `1fr` does not mean "share the space".** A long option label or a wide input pushed a `1fr` column past its track and the log dialog scrolled sideways on every keystroke. Every grid or flex container holding a form control needs `> * { min-width: 0 }`. The same dialog also jittered because a scrollbar appearing and disappearing reflowed the content: `scrollbar-gutter: stable` on the scrolling element, and scroll the *body*, not the box — the blueprint corner marks are drawn outside it and a scroll container clips them.
+31. **Boot 4 split the *test slices* into modules too.** `@DataJpaTest` and `@WebMvcTest` do not resolve from `spring-boot-starter-test` alone — they need `spring-boot-data-jpa-test` and `spring-boot-webmvc-test`, and they moved package (`org.springframework.boot.data.jpa.test.autoconfigure`, `org.springframework.boot.webmvc.test.autoconfigure`). Same trap as gotcha 10; expect it for every other slice.
+32. **Jackson binds an ABSENT `Optional` record component to `Optional.empty()`.** A PATCH DTO cannot use a record to tell "not mentioned" from "clear it" — saving a name would wipe the age beside it. Use a class with setters: a setter runs only when the key is present in the body, so a field left null really was left out. Caught by a test, not in review.
 30. **The ArchUnit float ban covers record components, and constants.** `noFieldIsAFloatingPointNumber` failed on BR-6's bisection bracket (`private static final double HIGHEST_RATE`) and would fail on any `double` in a record. Locals, parameters and return types are fine — the solver works in `double` internally. Anything that is *state* is a `BigDecimal`, converted at the boundary. This is right, not an obstacle: a rate serialised from a `double` carries its binary representation across the wire.
 29. **`list-style: none` does not remove the list's padding.** The browser's `padding-inline-start: 40px` survives it, which is what pushed the instalment figures out of the dialog. Always pair it with `padding-left: 0`.
 25. **`vi.useFakeTimers()` freezes MSW.** Faking the whole event loop stops `fetch` ever resolving, so every test in the file times out at 5s. Fake only the clock: `vi.useFakeTimers({ toFake: ['Date'] })`.
