@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { CardSummary } from '../../components/CardSummary';
 import { EmptyState } from '../../components/EmptyState';
 import { PageHeader } from '../../components/PageHeader';
@@ -5,8 +7,10 @@ import { fromIso } from '../../lib/dates';
 import { fromMinorUnits } from '../../lib/money';
 import type { Card } from '../../types/api';
 
+import { NewCardDialog } from './NewCardDialog';
 import styles from './CardsPage.module.css';
-import { useCards } from './hooks';
+import { useCards, useCreateCard } from './hooks';
+import { useAccounts } from '../accounts/hooks';
 
 /**
  * Limits, closing and due days (BR-4, BR-5).
@@ -46,10 +50,24 @@ function toSummaryProps(card: Card) {
 
 export function CardsPage() {
   const { cards, isLoading, error } = useCards();
+  const { accounts } = useAccounts();
+  const [creating, setCreating] = useState(false);
+  const create = useCreateCard();
 
   return (
     <>
-      <PageHeader kicker="Fig. 06 — Limits, closing and due days" title="Cards" />
+      <PageHeader kicker="Fig. 06 — Limits, closing and due days" title="Cards">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            create.reset();
+            setCreating(true);
+          }}
+        >
+          + New card
+        </button>
+      </PageHeader>
 
       {isLoading && <p className={styles.status}>Loading cards…</p>}
 
@@ -59,8 +77,35 @@ export function CardsPage() {
         <EmptyState
           title="No cards yet"
           message="Add a card to see when its spending is actually billed."
+          action={
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              + New card
+            </button>
+          }
         />
       )}
+
+      <NewCardDialog
+        open={creating}
+        accounts={accounts}
+        error={create.error?.message}
+        onClose={() => {
+          setCreating(false);
+        }}
+        onCreate={(body) => {
+          create.mutate(body, {
+            onSuccess: () => {
+              setCreating(false);
+            },
+          });
+        }}
+      />
 
       {cards.length > 0 && (
         <ul className={styles.list}>

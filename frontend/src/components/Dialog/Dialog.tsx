@@ -92,7 +92,11 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={['dialog', 'blueprint', styles.dialog].join(' ')}
+        // `blueprint` only. Composing the design system's `.dialog` here is
+        // what made the box transparent: its `background: transparent` and
+        // this module's opaque one have equal specificity, so the winner was
+        // decided by stylesheet order (gotcha 19).
+        className={['blueprint', styles.dialog].join(' ')}
         onClick={(event) => {
           // The backdrop closes on click; the dialog is inside it, so a click
           // on the dialog must not travel up and dismiss what it landed on.
@@ -108,7 +112,7 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
           {title}
         </h2>
 
-        {children}
+        <div className={styles.body}>{children}</div>
 
         {actions !== undefined && <div className={styles.actions}>{actions}</div>}
       </div>

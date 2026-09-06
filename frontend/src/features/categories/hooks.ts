@@ -5,12 +5,13 @@ import { fromMinorUnits, type Money } from '../../lib/money';
 import { occurrencesIn, plannedAmountIn, type Frequency } from '../../lib/period';
 import type {
   Category,
+  CreateCategoryRequest,
   CategoryList,
   PeriodKind,
   UpdateCategoryPlanRequest,
 } from '../../types/api';
 
-import { fetchCategories, updateCategoryPlan } from './api';
+import { createCategory, fetchCategories, updateCategoryPlan } from './api';
 
 export const categoriesQueryKey = (period: PeriodKind) => ['categories', period] as const;
 
@@ -115,6 +116,25 @@ export function useUpdateCategoryPlan(period: PeriodKind = 'MONTH') {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
+/**
+ * Creating a category, and with it its planned amount (BR-14).
+ *
+ * The dashboard is invalidated as well as the list: a new category is a new
+ * row on Earnings or Expenses, and BR-10's normalisation of its planned amount
+ * is the server's to do.
+ */
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: CreateCategoryRequest) => createCategory(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

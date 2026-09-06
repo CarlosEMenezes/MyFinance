@@ -113,6 +113,26 @@ export interface Account {
   readonly cardNames: readonly string[];
 }
 
+/** `POST /accounts` — a new place for money to sit (BR-13). */
+export interface CreateAccountRequest {
+  readonly name: string;
+  readonly kind: AccountKind;
+  readonly balance: MinorUnits;
+  readonly currency: CurrencyCode;
+  readonly includeInTotals: boolean;
+  readonly note?: string | null;
+}
+
+/**
+ * `POST /accounts/{id}/pockets` — BR-13. A pocket is created *against* an
+ * account rather than beside one, because its balance is already part of that
+ * account's and there is no such thing as a free-floating pocket.
+ */
+export interface CreatePocketRequest {
+  readonly name: string;
+  readonly balance: MinorUnits;
+}
+
 /* ── cards (BR-4, BR-5) ─────────────────────────────────────────────────── */
 
 /**
@@ -143,6 +163,27 @@ export interface Card {
   readonly cycle: CardCycleDates | null;
 }
 
+/**
+ * `POST /cards`. BR-5 in the type system: a debit card has no cycle, so the
+ * shape that carries a closing day is not the shape a debit card can be sent
+ * as. A credit card without its cycle cannot be expressed either.
+ */
+export type CreateCardRequest =
+  | {
+      readonly kind: 'DEBIT';
+      readonly name: string;
+      readonly accountId: string;
+    }
+  | {
+      readonly kind: 'CREDIT';
+      readonly name: string;
+      readonly accountId: string;
+      readonly creditLimit: MinorUnits;
+      /** BR-4 validates both to 1-28. */
+      readonly closingDay: number;
+      readonly dueDay: number;
+    };
+
 /* ── categories and the plan (BR-10, BR-14) ─────────────────────────────── */
 
 export interface Category {
@@ -169,6 +210,20 @@ export interface Category {
 export interface CategoryList {
   readonly period: PeriodWindow;
   readonly categories: readonly Category[];
+}
+
+/**
+ * `POST /categories` — BR-14. Creating a category creates its planned amount
+ * and frequency, so neither is optional: a category with no plan is a row the
+ * plan-vs-real tables cannot draw.
+ */
+export interface CreateCategoryRequest {
+  readonly name: string;
+  readonly type: CategoryType;
+  readonly group: string;
+  readonly plannedAmount: MinorUnits;
+  readonly plannedFrequency: PlannedFrequency;
+  readonly anchorDate: IsoDate;
 }
 
 /** `PATCH /categories/{id}` — BR-14 inline plan editing. */

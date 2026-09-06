@@ -1,11 +1,14 @@
+import { useState } from 'react';
+
 import { AccountCard } from '../../components/AccountCard';
 import { EmptyState } from '../../components/EmptyState';
 import { MoneyText } from '../../components/MoneyText';
 import { PageHeader } from '../../components/PageHeader';
 import { fromMinorUnits } from '../../lib/money';
 
+import { NewAccountDialog } from './NewAccountDialog';
 import styles from './AccountsPage.module.css';
-import { useAccounts } from './hooks';
+import { useAccounts, useCreateAccount } from './hooks';
 
 /**
  * Where the money sits (BR-13).
@@ -20,10 +23,23 @@ import { useAccounts } from './hooks';
  */
 export function AccountsPage() {
   const { accounts, countedTotal, hasExcludedAccounts, isLoading, error } = useAccounts();
+  const [creating, setCreating] = useState(false);
+  const create = useCreateAccount();
 
   return (
     <>
-      <PageHeader kicker="Fig. 05 — Where the money sits" title="Accounts" />
+      <PageHeader kicker="Fig. 05 — Where the money sits" title="Accounts">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            create.reset();
+            setCreating(true);
+          }}
+        >
+          + New account
+        </button>
+      </PageHeader>
 
       {isLoading && <p className={styles.status}>Loading accounts…</p>}
 
@@ -35,8 +51,37 @@ export function AccountsPage() {
         <EmptyState
           title="No accounts yet"
           message="Add a cash, bank or savings account to start tracking where your money sits."
+          action={
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              + New account
+            </button>
+          }
         />
       )}
+
+      <NewAccountDialog
+        open={creating}
+        accounts={accounts}
+        error={create.error?.message}
+        onClose={() => {
+          setCreating(false);
+        }}
+        onCreate={(submission) => {
+          create.mutate(submission, {
+            // Left open on failure, with what was typed still in it: a form
+            // that closes on an error has thrown the entry away.
+            onSuccess: () => {
+              setCreating(false);
+            },
+          });
+        }}
+      />
 
       {accounts.length > 0 && (
         <>

@@ -1,12 +1,15 @@
+import { useState } from 'react';
+
 import { EmptyState } from '../../components/EmptyState';
 import { MoneyText } from '../../components/MoneyText';
 import { PageHeader } from '../../components/PageHeader';
 import { Panel } from '../../components/Panel';
 import { isNegative, subtract, sum } from '../../lib/money';
 
+import { NewCategoryDialog } from './NewCategoryDialog';
 import styles from './CategoriesPage.module.css';
 import { CategoryTable } from './components/CategoryTable';
-import { useCategories, useUpdateCategoryPlan } from './hooks';
+import { useCategories, useCreateCategory, useUpdateCategoryPlan } from './hooks';
 
 /**
  * What you expect to earn and spend (BR-14), and what that comes to (BR-10).
@@ -23,6 +26,8 @@ export function CategoriesPage() {
   const { expenses, earnings, periodLabel, periodFrom, periodTo, isLoading, error } =
     useCategories();
   const { mutate } = useUpdateCategoryPlan();
+  const [creating, setCreating] = useState(false);
+  const create = useCreateCategory();
 
   const plannedIn = sum(earnings.map((row) => row.plannedInPeriod));
   const plannedOut = sum(expenses.map((row) => row.plannedInPeriod));
@@ -30,7 +35,18 @@ export function CategoriesPage() {
 
   return (
     <>
-      <PageHeader kicker="Fig. 08 — What you expect to earn and spend" title="Categories & plan" />
+      <PageHeader kicker="Fig. 08 — What you expect to earn and spend" title="Categories & plan">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            create.reset();
+            setCreating(true);
+          }}
+        >
+          + New category
+        </button>
+      </PageHeader>
 
       {isLoading && <p className={styles.status}>Loading categories…</p>}
 
@@ -42,8 +58,36 @@ export function CategoriesPage() {
         <EmptyState
           title="No categories yet"
           message="Create a category to set what you expect to earn or spend."
+          action={
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              + New category
+            </button>
+          }
         />
       )}
+
+      <NewCategoryDialog
+        open={creating}
+        expenseGroups={EXPENSE_GROUPS}
+        earningGroups={EARNING_GROUPS}
+        error={create.error?.message}
+        onClose={() => {
+          setCreating(false);
+        }}
+        onCreate={(body) => {
+          create.mutate(body, {
+            onSuccess: () => {
+              setCreating(false);
+            },
+          });
+        }}
+      />
 
       {(expenses.length > 0 || earnings.length > 0) && (
         <div className={styles.layout}>

@@ -17,6 +17,7 @@ import {
   subtract,
   sum,
   toMinorUnits,
+  tryFromDecimal,
 } from './money';
 
 describe('fromMinorUnits', () => {
@@ -175,5 +176,22 @@ describe('toDecimalString', () => {
   it('round-trips through fromDecimal', () => {
     const amount = fromDecimal('61.34');
     expect(fromDecimal(toDecimalString(amount))).toBe(amount);
+  });
+});
+
+describe('tryFromDecimal', () => {
+  it('parses what fromDecimal parses', () => {
+    expect(tryFromDecimal('74.20')).toBe(fromMinorUnits(7420));
+  });
+
+  it('answers null instead of throwing, so a half-typed field is not an error', () => {
+    expect(tryFromDecimal('12.')).toBeNull();
+    expect(tryFromDecimal('')).toBeNull();
+    expect(tryFromDecimal('twelve')).toBeNull();
+  });
+
+  it('rounds the same way, half away from zero', () => {
+    expect(tryFromDecimal('0.005')).toBe(fromMinorUnits(1));
+    expect(tryFromDecimal('-0.005')).toBe(fromMinorUnits(-1));
   });
 });

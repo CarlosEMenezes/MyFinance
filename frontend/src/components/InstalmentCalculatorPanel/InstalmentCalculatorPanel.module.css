@@ -17,6 +17,11 @@
   gap: var(--space-3);
 }
 
+/* See LogEntryForm.module.css: without this the number inputs widen the track. */
+.terms > * {
+  min-width: 0;
+}
+
 .frequency {
   margin-top: var(--space-2);
 }
@@ -26,6 +31,10 @@
   border-top: 1px solid var(--color-divider);
   padding-top: var(--space-3);
   list-style: none;
+  /* `list-style: none` removes the marker but not the browser's 40px
+     `padding-inline-start`, which was pushing these figures out of the dialog. */
+  padding-left: 0;
+  margin-bottom: 0;
 }
 
 .figure {

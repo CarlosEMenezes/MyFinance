@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Card } from '../../types/api';
+import type { Card, CreateCardRequest } from '../../types/api';
 
-import { fetchCards } from './api';
+import { createCard, fetchCards } from './api';
 
 export const cardsQueryKey = ['cards'] as const;
 
@@ -25,4 +25,25 @@ export function useCards(): CardsView {
     isLoading: isPending,
     error,
   };
+}
+
+/**
+ * Creating a card.
+ *
+ * Not optimistic: BR-4's cycle dates come back computed by the server, and a
+ * card drawn locally would have to invent them or show a card with none — the
+ * exact degradation the Cards page exists to avoid.
+ */
+export function useCreateCard() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: CreateCardRequest) => createCard(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: cardsQueryKey });
+      // A card is a payment method, and a credit card adds a bill to the queue.
+      void queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
 }

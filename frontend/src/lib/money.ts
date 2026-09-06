@@ -89,6 +89,22 @@ export function fromDecimal(value: string | number): Money {
   return fromMinorUnits(isNegativeAmount ? -magnitude : magnitude);
 }
 
+/**
+ * `fromDecimal` for text a person is still typing.
+ *
+ * A form needs to ask "is this an amount yet?" without an exception as the
+ * answer: half of "12." is not an error the user has made, it is a value they
+ * have not finished. Returns `null` rather than throwing, so a caller decides
+ * what an unparseable field means.
+ */
+export function tryFromDecimal(value: string): Money | null {
+  try {
+    return fromDecimal(value);
+  } catch {
+    return null;
+  }
+}
+
 export function add(augend: Money, addend: Money): Money {
   return fromMinorUnits(augend + addend);
 }

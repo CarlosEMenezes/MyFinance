@@ -10,6 +10,15 @@
   gap: var(--space-3);
 }
 
+/* A grid item's default `min-width: auto` is its content, not its track, so a
+   long option label or a wide input pushes the column past `1fr` and the whole
+   dialog scrolls sideways. `1fr` means "share the space" only once the item is
+   allowed to be narrower than its content. */
+.pair > *,
+.even > * {
+  min-width: 0;
+}
+
 /* The conversion preview is information, so it is tinted with the accent
    rather than warned about. */
 .conversion {

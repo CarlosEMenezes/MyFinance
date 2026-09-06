@@ -1,7 +1,8 @@
-import { getJson, patchJson } from '../../lib/http';
+import { getJson, patchJson, postJson } from '../../lib/http';
 import type {
   Category,
   CategoryList,
+  CreateCategoryRequest,
   PeriodKind,
   UpdateCategoryPlanRequest,
 } from '../../types/api';
@@ -15,4 +16,8 @@ export function updateCategoryPlan(
   changes: UpdateCategoryPlanRequest,
 ): Promise<Category> {
   return patchJson<Category>(`/categories/${id}`, changes);
+}
+
+export function createCategory(body: CreateCategoryRequest): Promise<Category> {
+  return postJson<Category>('/categories', body);
 }

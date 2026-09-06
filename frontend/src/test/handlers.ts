@@ -6,9 +6,15 @@ import { goals } from './goals.fixture';
 import { notifications, notificationSettings } from './notifications.fixture';
 import { fxRates, user } from './settings.fixture';
 import type {
+  Account,
+  Card,
   Category,
-  Dashboard,
+  CreateAccountRequest,
+  CreateCardRequest,
+  CreateCategoryRequest,
+  CreatePocketRequest,
   CreateTransactionRequest,
+  Dashboard,
   MarkNotificationsReadRequest,
   Notification,
   NotificationSettings,
@@ -29,6 +35,8 @@ import type {
  */
 export const API_BASE = '/api/v1';
 
+let accountList: Account[] = [...accounts];
+let cardList: Card[] = [...cards];
 let categories: Category[] = [...categoryList.categories];
 let currentDashboard: Dashboard = dashboard;
 let notificationQueue: Notification[] = [...notifications];
@@ -39,6 +47,8 @@ let loggedTransactions: string[] = [];
 
 /** Called between tests so no test can see another's writes. */
 export function resetApiState(): void {
+  accountList = [...accounts];
+  cardList = [...cards];
   categories = [...categoryList.categories];
   currentDashboard = dashboard;
   notificationQueue = [...notifications];
@@ -52,6 +62,9 @@ function newTransactionId(): string {
   loggedTransactions.push(id);
   return id;
 }
+
+const problem = (status: number, title: string) =>
+  HttpResponse.json({ type: 'about:blank', title, status, detail: '' }, { status });
 
 /** BR-12 persists only `readAt`, so that is the only field a write touches. */
 const READ_AT = '2026-08-31T10:00:00+01:00';
@@ -82,8 +95,89 @@ function applyPlanChange(categoryId: string, plannedAmount: number): void {
 }
 
 export const handlers = [
-  http.get(`${API_BASE}/accounts`, () => HttpResponse.json(accounts)),
-  http.get(`${API_BASE}/cards`, () => HttpResponse.json(cards)),
+  http.get(`${API_BASE}/accounts`, () => HttpResponse.json(accountList)),
+  http.get(`${API_BASE}/cards`, () => HttpResponse.json(cardList)),
+
+  http.post(`${API_BASE}/accounts`, async ({ request }) => {
+    const body = (await request.json()) as CreateAccountRequest;
+    const created: Account = {
+      id: `a-${String(accountList.length + 1)}`,
+      note: null,
+      pockets: [],
+      cardNames: [],
+      ...body,
+    };
+    accountList = [...accountList, created];
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.post(`${API_BASE}/accounts/:id/pockets`, async ({ params, request }) => {
+    const body = (await request.json()) as CreatePocketRequest;
+    const parent = accountList.find((account) => account.id === params.id);
+    if (parent === undefined) {
+      return problem(404, 'No such account');
+    }
+    // BR-13: the pocket is already inside the parent, so the parent's balance
+    // does not move. A fake backend that added it would teach the UI to
+    // double-count.
+    const pocket = {
+      id: `p-${parent.id}-${String(parent.pockets.length + 1)}`,
+      accountId: parent.id,
+      ...body,
+    };
+    const updated = { ...parent, pockets: [...parent.pockets, pocket] };
+    accountList = accountList.map((account) => (account.id === parent.id ? updated : account));
+    return HttpResponse.json(updated, { status: 201 });
+  }),
+
+  http.post(`${API_BASE}/cards`, async ({ request }) => {
+    const body = (await request.json()) as CreateCardRequest;
+    const settlesFrom = accountList.find((account) => account.id === body.accountId)?.name ?? '';
+    const created: Card =
+      body.kind === 'CREDIT'
+        ? {
+            id: `c-${String(cardList.length + 1)}`,
+            name: body.name,
+            kind: 'CREDIT',
+            accountId: body.accountId,
+            settlesFrom,
+            creditLimit: body.creditLimit,
+            currentBalance: 0,
+            closingDay: body.closingDay,
+            dueDay: body.dueDay,
+            // BR-4 is the server's: the cycle dates come back computed.
+            cycle: {
+              nextBillDate: '2026-09-05',
+              billDateOnClosingDay: '2026-10-05',
+              billDateAfterClosingDay: '2026-11-05',
+            },
+          }
+        : {
+            id: `c-${String(cardList.length + 1)}`,
+            name: body.name,
+            kind: 'DEBIT',
+            accountId: body.accountId,
+            settlesFrom,
+            creditLimit: null,
+            currentBalance: null,
+            closingDay: null,
+            dueDay: null,
+            cycle: null,
+          };
+    cardList = [...cardList, created];
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.post(`${API_BASE}/categories`, async ({ request }) => {
+    const body = (await request.json()) as CreateCategoryRequest;
+    const created: Category = {
+      id: `cat-${String(categories.length + 1)}`,
+      archived: false,
+      ...body,
+    };
+    categories = [...categories, created];
+    return HttpResponse.json(created, { status: 201 });
+  }),
   http.get(`${API_BASE}/dashboard`, () => HttpResponse.json(currentDashboard)),
   http.get(`${API_BASE}/goals`, () => HttpResponse.json(goals)),
   http.get(`${API_BASE}/users/me`, () => HttpResponse.json(currentUser)),
@@ -142,10 +236,7 @@ export const handlers = [
     const changes = (await request.json()) as Partial<Category>;
     const index = categories.findIndex((category) => category.id === params.id);
     if (index < 0) {
-      return HttpResponse.json(
-        { type: 'about:blank', title: 'No such category', status: 404, detail: '' },
-        { status: 404 },
-      );
+      return problem(404, 'No such category');
     }
     const updated = { ...categories[index], ...changes } as Category;
     categories = categories.map((category, i) => (i === index ? updated : category));
