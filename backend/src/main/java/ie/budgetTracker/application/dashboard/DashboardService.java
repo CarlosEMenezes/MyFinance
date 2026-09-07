@@ -8,6 +8,7 @@ import ie.budgetTracker.application.dashboard.dto.DashboardResponse;
 import ie.budgetTracker.application.dashboard.dto.PlanRowResponse;
 import ie.budgetTracker.application.financing.FinancingRepository;
 import ie.budgetTracker.application.identity.CurrentUser;
+import ie.budgetTracker.application.notifications.DuePayments;
 import ie.budgetTracker.application.plan.CategoryRepository;
 import ie.budgetTracker.application.plan.PeriodWindows;
 import ie.budgetTracker.application.plan.dto.PeriodWindowResponse;
@@ -16,12 +17,9 @@ import ie.budgetTracker.application.transactions.TransactionRepository;
 import ie.budgetTracker.domain.accounts.Account;
 import ie.budgetTracker.domain.cards.Card;
 import ie.budgetTracker.domain.cards.CreditCard;
-import ie.budgetTracker.domain.cards.StatementCycleCalculator;
 import ie.budgetTracker.domain.financing.InstalmentPlan;
 import ie.budgetTracker.domain.financing.Loan;
 import ie.budgetTracker.domain.money.MoneyCalculator;
-import ie.budgetTracker.domain.notifications.DuePayment;
-import ie.budgetTracker.domain.notifications.DueSource;
 import ie.budgetTracker.domain.plan.Category;
 import ie.budgetTracker.domain.plan.CategoryType;
 import ie.budgetTracker.domain.plan.DateRange;
@@ -85,13 +83,14 @@ public class DashboardService {
 	private final CardRepository cards;
 	private final CardService cardNames;
 	private final FinancingRepository financing;
+	private final DuePayments duePayments;
 	private final CurrentUser currentUser;
 	private final Clock clock;
 
 	public DashboardService(PeriodWindows periods, CategoryRepository categories,
 			TransactionRepository transactions, AccountRepository accounts, CardRepository cards,
-			CardService cardNames, FinancingRepository financing, CurrentUser currentUser,
-			Clock clock) {
+			CardService cardNames, FinancingRepository financing, DuePayments duePayments,
+			CurrentUser currentUser, Clock clock) {
 		this.periods = periods;
 		this.categories = categories;
 		this.transactions = transactions;
@@ -99,6 +98,7 @@ public class DashboardService {
 		this.cards = cards;
 		this.cardNames = cardNames;
 		this.financing = financing;
+		this.duePayments = duePayments;
 		this.currentUser = currentUser;
 		this.clock = clock;
 	}
@@ -134,7 +134,7 @@ public class DashboardService {
 				earnings,
 				List.copyOf(expenses),
 				totals(earnings, expenses),
-				upcoming(ownedCards, plans, loans),
+				upcoming(user),
 				categorySpend(expenses),
 				accountsWithTheirCards(ownedAccounts));
 	}
@@ -354,42 +354,15 @@ public class DashboardService {
 				expensesReal, earningsPlanned - expensesPlanned, earningsReal - expensesReal);
 	}
 
-	/** BR-12: what falls due next, nearest first. */
-	private List<DashboardResponse.UpcomingPaymentResponse> upcoming(List<Card> cards,
-			List<InstalmentPlan> plans, List<Loan> loans) {
-
-		LocalDate today = LocalDate.now(clock);
-		List<DuePayment> due = new ArrayList<>();
-
-		for (Card card : cards) {
-			if (card instanceof CreditCard credit
-					&& MoneyCalculator.isPositive(credit.currentBalance())) {
-				due.add(new DuePayment("card-" + credit.id(), credit.name() + " card payment",
-						"statement closes day " + credit.cycle().closingDay(),
-						StatementCycleCalculator.nextDueDateOnOrAfter(today,
-								credit.cycle().dueDay()),
-						credit.currentBalance(), DueSource.CARD_BILL));
-			}
-		}
-
-		for (InstalmentPlan plan : plans) {
-			if (plan.instalmentsRemaining() > 0) {
-				due.add(new DuePayment("instalment-" + plan.id(), plan.label(),
-						plan.instalmentsRemaining() + " instalments left", plan.firstDueDate(),
-						plan.terms().instalmentAmount(), DueSource.INSTALMENT));
-			}
-		}
-
-		for (Loan loan : loans) {
-			if (loan.terms().instalmentsRemaining() > 0) {
-				due.add(new DuePayment("loan-" + loan.id(), loan.label(),
-						loan.terms().instalmentsRemaining() + " instalments left",
-						loan.firstDueDate(), loan.terms().instalmentAmount(), DueSource.LOAN));
-			}
-		}
-
-		return due.stream()
-				.sorted(Comparator.comparing(DuePayment::dueDate))
+	/**
+	 * BR-12: what falls due next, nearest first.
+	 *
+	 * Assembled by the same component the notifications queue uses. Two
+	 * assemblies would eventually disagree, and a warning that appears on one
+	 * screen and not the other is worse than one that appears on neither.
+	 */
+	private List<DashboardResponse.UpcomingPaymentResponse> upcoming(UUID user) {
+		return duePayments.forUser(user, LocalDate.now(clock)).stream()
 				.limit(UPCOMING_LIMIT)
 				// Negative for money leaving: every one of these is a payment.
 				.map(payment -> new DashboardResponse.UpcomingPaymentResponse(payment.key(),

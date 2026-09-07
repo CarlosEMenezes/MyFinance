@@ -20,6 +20,7 @@ import ie.budgetTracker.application.cards.CardService;
 import ie.budgetTracker.application.dashboard.dto.DashboardResponse;
 import ie.budgetTracker.application.dashboard.dto.PlanRowResponse;
 import ie.budgetTracker.application.financing.FinancingRepository;
+import ie.budgetTracker.application.notifications.DuePayments;
 import ie.budgetTracker.application.plan.CategoryRepository;
 import ie.budgetTracker.application.plan.PeriodWindows;
 import ie.budgetTracker.application.plan.dto.PeriodWindowResponse;
@@ -89,12 +90,21 @@ class DashboardServiceTest {
 	@Mock
 	private FinancingRepository financing;
 
+	/**
+	 * The real assembler, over the same mocked ports.
+	 *
+	 * Mocking it would leave the upcoming panel proving only that a list was
+	 * copied; the point of these tests is which payments actually appear.
+	 */
+	private DuePayments duePayments;
+
 	private DashboardService service;
 
 	@BeforeEach
 	void setUp() {
+		duePayments = new DuePayments(cards, financing);
 		service = new DashboardService(periods, categories, transactions, accounts, cards,
-				cardNames, financing, () -> ADA, Clock.fixed(NOW, ZoneOffset.UTC));
+				cardNames, financing, duePayments, () -> ADA, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	private void august() {

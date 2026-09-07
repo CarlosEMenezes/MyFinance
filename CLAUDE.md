@@ -296,7 +296,13 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 - [x] **Goals (§6 step 9)** — BR-11 end to end. `V10__goals.sql`, `GoalEntity`, `GoalService`, `/goals`. **Nothing derived is stored**: the gap, the contribution and the pace marker all move with today, so a stored copy would be a figure that was true on the morning it was written. `GoalCalculator` gained **`pacePercent`** — measured in days, so the marker never sits still for a month and then jumps. It is what turns a bar into a judgement: 40% saved says nothing until you know whether the plan said 25% or 70%.
 - [x] **`savedAmount` has one writer, and the schema says so.** BR-18 is explicit that tagging a goal never allocates toward it, so the port has no "allocate" method to become a second source of truth when Phase 2 arrives.
 - [x] **No what-if endpoint, deliberately.** Spec §5 names the slider as a case for the frontend's own pure function and ADR-7 allows it: a round trip per drag is the cost that exception exists to avoid.
-- [ ] Notifications (§6 step 10).
+- [x] **Notifications (§6 step 10)** — BR-12 end to end. `V11__notifications.sql` creates **no notifications table**, because a notification is not a thing anybody creates: the queue is derived on every read from card bills, loans and instalments, so **a paid card drops out of it on its own** — there is no row for anything to forget to delete. Only two things are persisted: **read state** (against the stable key, so an item marked read stays read across a recomputation) and the **lead-time settings**. Unread is the *absence* of a row rather than a row saying false — one state, one representation.
+- [x] **`DuePayments` is shared** by the dashboard's upcoming panel and the notifications queue. Two assemblies would eventually disagree, and a warning that appears on one screen and not the other is worse than one that appears on neither. Extracted in this commit; the dashboard was refactored onto it.
+- [x] **Turning every warning off still shows money already due.** With no lead enabled the widest is zero, which admits anything due today or overdue. Asserted, because the tempting implementation hides it.
+
+**Direct debits and subscriptions are two of BR-12's five sources and have no rows yet** — they arrive with recurrence in Phase 2 (BR-16). That is an absence of data, not a gap in the rule: nothing in `DuePayments` would need changing to include them.
+
+**Spec §6 steps 1–10 are complete. `./mvnw verify` green — 510 tests, on H2 and on real PostgreSQL, with ArchUnit and the coverage floors held.**
 
 **`./mvnw verify` green — 420 tests.**
 
@@ -304,7 +310,7 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 
 - [x] **Idempotent money writes (spec §4)** — `V9__idempotent_requests.sql` and `IdempotentRequests`. An `Idempotency-Key` on `POST /transactions` or `POST /loans` is **honoured when present, never required**: `lib/http.ts` sends none and the contract is frozen (ADR-12), so requiring one would break every page that works today. A retry is answered with the **stored answer, replayed verbatim** — re-deriving it could produce a different one, and a retry that answers differently is not idempotent. The key is scoped to the user **in the primary key**, because a key is chosen by the client and two people can pick the same one. The same key on a different endpoint is a **409**, not a match: replaying a loan as a transaction would be worse than creating a second one.
 
-**`./mvnw verify` green — 487 tests.**
+**`./mvnw verify` green — 510 tests.**
 
 **One thing is deliberately refused rather than half-done.** `CreateTransactionRequest.financing` is part of the frozen contract and the log form sends it, but instalment plans are spec §6 step 7 — the very next slice. Until then a request carrying it is answered **400, naming the field**. Accepting the terms and dropping them would save the entry as an ordinary purchase, leave no instalment plan behind, and say so on no screen; a refusal is visible, and it is one commit long.
 
