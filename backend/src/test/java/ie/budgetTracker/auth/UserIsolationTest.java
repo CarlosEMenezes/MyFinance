@@ -169,6 +169,40 @@ class UserIsolationTest {
 	}
 
 	@Test
+	@DisplayName("a user sees and edits only their own plan (BR-14)")
+	void aUserSeesOnlyTheirOwnPlan() throws Exception {
+		Cookie ada = register("ada7@example.com");
+		Cookie grace = register("grace7@example.com");
+
+		String adasRent = idOf(createCategory(ada, "Rent"));
+		createCategory(grace, "Groceries");
+
+		mvc().perform(get("/api/v1/categories").cookie(ada))
+				.andExpect(jsonPath("$.categories.length()").value(1))
+				.andExpect(jsonPath("$.categories[0].name").value("Rent"));
+
+		// 404, not 403: a 403 would confirm the category id is real (ADR-11).
+		mvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.patch("/api/v1/categories/" + adasRent)
+				.cookie(grace)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"plannedAmount":1}"""))
+				.andExpect(status().isNotFound());
+	}
+
+	private String createCategory(Cookie session, String name) throws Exception {
+		return mvc().perform(post("/api/v1/categories")
+				.cookie(session)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name":"%s","type":"EXPENSE","group":"Fixed","plannedAmount":78000,
+						 "plannedFrequency":"MONTHLY","anchorDate":"2026-01-01"}""".formatted(name)))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+	}
+
+	@Test
 	@DisplayName("each user reads their own profile")
 	void eachUserReadsTheirOwnProfile() throws Exception {
 		Cookie ada = register("ada3@example.com");
@@ -196,6 +230,7 @@ class UserIsolationTest {
 		// The default is deny: a new endpoint is protected the moment it exists.
 		mvc().perform(get("/api/v1/accounts")).andExpect(status().isUnauthorized());
 		mvc().perform(get("/api/v1/cards")).andExpect(status().isUnauthorized());
+		mvc().perform(get("/api/v1/categories")).andExpect(status().isUnauthorized());
 		mvc().perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
 	}
 
