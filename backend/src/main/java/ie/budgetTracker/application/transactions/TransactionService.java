@@ -3,6 +3,7 @@ package ie.budgetTracker.application.transactions;
 import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.accounts.AccountRepository;
 import ie.budgetTracker.application.cards.CardRepository;
+import ie.budgetTracker.application.financing.FinancingService;
 import ie.budgetTracker.application.fx.FxService;
 import ie.budgetTracker.application.identity.CurrentUser;
 import ie.budgetTracker.application.plan.CategoryRepository;
@@ -12,6 +13,7 @@ import ie.budgetTracker.application.transactions.dto.TransactionResponse;
 import ie.budgetTracker.domain.cards.Card;
 import ie.budgetTracker.domain.cards.CreditCard;
 import ie.budgetTracker.domain.cards.StatementCycleCalculator;
+import ie.budgetTracker.domain.financing.InstalmentPlan;
 import ie.budgetTracker.domain.money.ExchangeRates;
 import ie.budgetTracker.domain.money.MoneyCalculator;
 import ie.budgetTracker.domain.plan.Category;
@@ -47,23 +49,23 @@ public class TransactionService {
 	private final CardRepository cards;
 	private final AccountRepository accounts;
 	private final FxService fx;
+	private final FinancingService financing;
 	private final CurrentUser currentUser;
 
 	public TransactionService(TransactionRepository transactions, CategoryRepository categories,
 			CardRepository cards, AccountRepository accounts, FxService fx,
-			CurrentUser currentUser) {
+			FinancingService financing, CurrentUser currentUser) {
 		this.transactions = transactions;
 		this.categories = categories;
 		this.cards = cards;
 		this.accounts = accounts;
 		this.fx = fx;
+		this.financing = financing;
 		this.currentUser = currentUser;
 	}
 
 	@Transactional
 	public TransactionResponse log(CreateTransactionRequest request) {
-		refuseFinancingUntilItIsBuilt(request);
-
 		UUID user = currentUser.id();
 		Category category = categories.findForUser(user, request.categoryId())
 				.orElseThrow(() -> AppException.notFound(
@@ -92,9 +94,31 @@ public class TransactionService {
 				request.date(),
 				method,
 				request.note(),
-				null,
+				instalmentPlanFor(request, category.name()),
 				null,
 				plannedExpenseDate(request.type(), card, request.date()))));
+	}
+
+	/**
+	 * BR-6: the plan is created with the purchase, or not at all.
+	 *
+	 * Spec §4 asks for this to be atomic, and {@code @Transactional} on this
+	 * method is what makes it so: a purchase whose plan failed to write would
+	 * sit in the ledger as an ordinary expense, and BR-3's derived "Card
+	 * instalments" row would be short by exactly the amount somebody is going to
+	 * be charged.
+	 */
+	private UUID instalmentPlanFor(CreateTransactionRequest request, String label) {
+		CreateTransactionRequest.Financing terms = request.financing();
+		if (terms == null) {
+			return null;
+		}
+
+		InstalmentPlan plan = financing.planFor(request.paymentMethodId(), label,
+				request.amount(), terms.instalmentCount(), terms.instalmentAmount(),
+				terms.frequency(), request.date());
+
+		return plan.id();
 	}
 
 	/**
@@ -149,17 +173,4 @@ public class TransactionService {
 		}
 	}
 
-	/**
-	 * BR-6 arrives with spec §6 step 7, and this refuses it until it does.
-	 *
-	 * Accepting the terms and quietly dropping them would be worse than
-	 * refusing: the entry would be saved as an ordinary purchase, the instalment
-	 * plan would never exist, and nothing on any screen would say so.
-	 */
-	private static void refuseFinancingUntilItIsBuilt(CreateTransactionRequest request) {
-		if (request.financing() != null) {
-			throw AppException.invalid("financing",
-					"Spreading a purchase over instalments is not available yet");
-		}
-	}
 }

@@ -72,6 +72,20 @@ public class TransactionEntity {
 	@Column(name = "planned_expense_date")
 	private LocalDate plannedExpenseDate;
 
+	/**
+	 * Plain id columns rather than associations, on purpose.
+	 *
+	 * The database has the foreign keys, so nothing dangling can be written.
+	 * Mapping them as associations here would make every entry load a plan and a
+	 * loan to answer a question nobody asked, and would tempt an edit to the
+	 * plan through the transaction that references it.
+	 */
+	@Column(name = "instalment_plan_id")
+	private UUID instalmentPlanId;
+
+	@Column(name = "loan_id")
+	private UUID loanId;
+
 	protected TransactionEntity() {
 		// JPA.
 	}
@@ -91,6 +105,8 @@ public class TransactionEntity {
 		this.entryDate = transaction.date();
 		this.note = transaction.note();
 		this.plannedExpenseDate = transaction.plannedExpenseDate();
+		this.instalmentPlanId = transaction.instalmentPlanId();
+		this.loanId = transaction.loanId();
 	}
 
 	Transaction toDomain(PaymentMethodKind methodKind) {
@@ -98,6 +114,7 @@ public class TransactionEntity {
 
 		return new Transaction(id, type, category.getId(), amount, currency,
 				amountInDefaultCurrency, fxRate, entryDate,
-				new PaymentMethod(methodId, methodKind), note, null, null, plannedExpenseDate);
+				new PaymentMethod(methodId, methodKind), note, instalmentPlanId, loanId,
+				plannedExpenseDate);
 	}
 }

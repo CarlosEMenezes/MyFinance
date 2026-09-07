@@ -18,6 +18,7 @@ import java.util.UUID;
 import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.accounts.AccountRepository;
 import ie.budgetTracker.application.cards.CardRepository;
+import ie.budgetTracker.application.financing.FinancingService;
 import ie.budgetTracker.application.fx.FxService;
 import ie.budgetTracker.application.plan.CategoryRepository;
 import ie.budgetTracker.application.transactions.dto.CreateTransactionRequest;
@@ -26,6 +27,8 @@ import ie.budgetTracker.domain.accounts.AccountKind;
 import ie.budgetTracker.domain.cards.CreditCard;
 import ie.budgetTracker.domain.cards.DebitCard;
 import ie.budgetTracker.domain.cards.StatementCycle;
+import ie.budgetTracker.domain.financing.InstalmentPlan;
+import ie.budgetTracker.domain.financing.InstalmentTerms;
 import ie.budgetTracker.domain.money.Currency;
 import ie.budgetTracker.domain.money.ExchangeRates;
 import ie.budgetTracker.domain.plan.Category;
@@ -76,11 +79,15 @@ class TransactionServiceTest {
 	@Mock
 	private FxService fx;
 
+	@Mock
+	private FinancingService financing;
+
 	private TransactionService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new TransactionService(transactions, categories, cards, accounts, fx, () -> ADA);
+		service = new TransactionService(transactions, categories, cards, accounts, fx, financing,
+				() -> ADA);
 	}
 
 	private void ratesAreAvailable() {
@@ -309,17 +316,41 @@ class TransactionServiceTest {
 		}
 
 		@Test
-		@DisplayName("BR-6: instalment terms are refused rather than silently dropped")
-		void instalmentTermsAreRefusedForNow() {
-			// Accepting them and dropping them would save the entry as an ordinary
-			// purchase, leave no instalment plan, and say so nowhere.
-			assertThatThrownBy(() -> service.log(new CreateTransactionRequest(
-					TransactionType.EXPENSE, GROCERIES, 39900L, Currency.EUR,
-					LocalDate.parse("2026-08-20"), VISA, null,
-					new CreateTransactionRequest.Financing(6, 7150L, Frequency.MONTHLY))))
-					.isInstanceOf(AppException.class)
-					.extracting(refused -> ((AppException) refused).field())
-					.isEqualTo("financing");
+		@DisplayName("BR-6: a financed purchase is written with the plan that spreads it")
+		void aFinancedPurchaseCarriesItsPlan() {
+			UUID planId = UUID.randomUUID();
+			groceriesExists();
+			theVisaIsTheMethod();
+			ratesAreAvailable();
+			savedAsGiven();
+			given(financing.planFor(eq(VISA), any(), eq(39900L), eq(6), eq(7150L),
+					eq(Frequency.MONTHLY), any()))
+					.willReturn(new InstalmentPlan(planId, VISA, "Groceries",
+							new InstalmentTerms(of("399.00"), 6, of("71.50"), Frequency.MONTHLY),
+							0, LocalDate.parse("2026-09-05")));
+
+			service.log(new CreateTransactionRequest(TransactionType.EXPENSE, GROCERIES, 39900L,
+					Currency.EUR, LocalDate.parse("2026-08-20"), VISA, null,
+					new CreateTransactionRequest.Financing(6, 7150L, Frequency.MONTHLY)));
+
+			// Spec §4 asks for the plan to be created atomically with the purchase.
+			// An entry saved without it would sit in the ledger as an ordinary
+			// expense, and BR-3's derived row would be short by what is owed.
+			assertThat(written().instalmentPlanId()).isEqualTo(planId);
+		}
+
+		@Test
+		@DisplayName("an ordinary purchase creates no plan at all")
+		void anOrdinaryPurchaseCreatesNoPlan() {
+			groceriesExists();
+			theCurrentAccountIsTheMethod();
+			ratesAreAvailable();
+			savedAsGiven();
+
+			service.log(spend(5000L, Currency.EUR, REVOLUT));
+
+			assertThat(written().instalmentPlanId()).isNull();
+			Mockito.verifyNoInteractions(financing);
 		}
 	}
 }
