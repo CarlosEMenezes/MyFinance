@@ -19,5 +19,23 @@ public record PositionInputs(
 		 * was borrowed rather than earned - which is the difference between a
 		 * comfortable month and a debt.
 		 */
-		BigDecimal borrowed) {
+		BigDecimal borrowed,
+		/**
+		 * BR-1: earnings logged in the period.
+		 *
+		 * Account balances are opening figures the user maintains; what has been
+		 * logged since is added here. Folding it into the balances instead would
+		 * make the two indistinguishable, and there would be no way to correct a
+		 * balance without also erasing the history behind it.
+		 */
+		BigDecimal earnings,
+		/**
+		 * BR-1: expenses **not** paid by credit card.
+		 *
+		 * Card spending is excluded because it has not left any account yet - it
+		 * is sitting on the card, and BR-1 already counts it on the other side as
+		 * part of what is owed. Subtracting it here as well would charge the same
+		 * purchase to the position twice.
+		 */
+		BigDecimal expensesNotOnCredit) {
 }

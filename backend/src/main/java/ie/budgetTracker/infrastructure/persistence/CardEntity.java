@@ -78,6 +78,10 @@ public class CardEntity {
 		// on this table insists on (BR-5).
 	}
 
+	CardKind getKind() {
+		return kind;
+	}
+
 	UUID getId() {
 		return id;
 	}

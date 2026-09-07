@@ -38,7 +38,8 @@ class PositionCalculatorTest {
 			new OutstandingCommitment(of("100"), 3, Frequency.MONTHLY));
 
 	private static PositionInputs prototypeInputs() {
-		return new PositionInputs(ACCOUNTS, of("386.40"), INSTALMENTS, LOANS, of("0"));
+		return new PositionInputs(ACCOUNTS, of("386.40"), INSTALMENTS, LOANS, of("0"), of("0"),
+				of("0"));
 	}
 
 	@Nested
@@ -57,9 +58,61 @@ class PositionCalculatorTest {
 			PositionInputs withExcluded = new PositionInputs(
 					List.of(new AccountBalance(of("120"), true),
 							new AccountBalance(of("5000"), false)),
-					of("0"), List.of(), List.of(), of("0"));
+					of("0"), List.of(), List.of(), of("0"), of("0"), of("0"));
 
 			assertThat(PositionCalculator.calculate(withExcluded).availableNow()).isEqualTo(of("120.00"));
+		}
+
+		@Test
+		@DisplayName("BR-1: adds what has been earned since the balances were set")
+		void addsEarningsLoggedInThePeriod() {
+			PositionInputs earned = new PositionInputs(
+					List.of(new AccountBalance(of("120"), true)),
+					of("0"), List.of(), List.of(), of("0"), of("300"), of("0"));
+
+			assertThat(PositionCalculator.calculate(earned).availableNow())
+					.isEqualTo(of("420.00"));
+		}
+
+		@Test
+		@DisplayName("BR-1: subtracts expenses that actually left an account")
+		void subtractsExpensesThatLeftAnAccount() {
+			PositionInputs spent = new PositionInputs(
+					List.of(new AccountBalance(of("120"), true)),
+					of("0"), List.of(), List.of(), of("0"), of("0"), of("50"));
+
+			assertThat(PositionCalculator.calculate(spent).availableNow())
+					.isEqualTo(of("70.00"));
+		}
+
+		@Test
+		@DisplayName("BR-1: card spending is not subtracted here, because it is already owed")
+		void cardSpendingIsNotSubtractedTwice() {
+			// Fifty euro spent on a card: still sitting on the card, so it has not
+			// left any account. It appears once, as part of what is owed.
+			// Subtracting it here as well would charge the same purchase twice.
+			PositionInputs onCard = new PositionInputs(
+					List.of(new AccountBalance(of("120"), true)),
+					of("50"), List.of(), List.of(), of("0"), of("0"), of("0"));
+
+			Position position = PositionCalculator.calculate(onCard);
+
+			assertThat(position.availableNow()).isEqualTo(of("120.00"));
+			assertThat(position.owed()).isEqualTo(of("50.00"));
+			assertThat(position.totalMoneyNow()).isEqualTo(of("70.00"));
+		}
+
+		@Test
+		@DisplayName("BR-1: a month that spent more than it earned goes negative, and stays there")
+		void aNegativeMonthIsNotFlooredAtZero() {
+			PositionInputs overspent = new PositionInputs(
+					List.of(new AccountBalance(of("100"), true)),
+					of("0"), List.of(), List.of(), of("0"), of("50"), of("400"));
+
+			// Nothing floors this. It is the figure the app exists to show
+			// honestly.
+			assertThat(PositionCalculator.calculate(overspent).availableNow())
+					.isEqualTo(of("-250.00"));
 		}
 	}
 
@@ -82,7 +135,8 @@ class PositionCalculatorTest {
 			// What is owed is what will actually be paid. Discounting belongs to
 			// BR-7's settlement figure, which answers a different question.
 			PositionInputs oneLoan = new PositionInputs(List.of(), of("0"), List.of(),
-					List.of(new OutstandingCommitment(of("118.40"), 19, Frequency.MONTHLY)), of("0"));
+					List.of(new OutstandingCommitment(of("118.40"), 19, Frequency.MONTHLY)), of("0"),
+					of("0"), of("0"));
 
 			assertThat(PositionCalculator.calculate(oneLoan).owed()).isEqualTo(of("2249.60"));
 		}
@@ -102,7 +156,8 @@ class PositionCalculatorTest {
 		@Test
 		void isTheSumOfNothingWhenThereIsNothing() {
 			PositionInputs empty =
-					new PositionInputs(List.of(), of("0"), List.of(), List.of(), of("0"));
+					new PositionInputs(List.of(), of("0"), List.of(), List.of(), of("0"),
+					of("0"), of("0"));
 			Position position = PositionCalculator.calculate(empty);
 
 			assertThat(position.availableNow()).isEqualTo(of("0.00"));
@@ -122,7 +177,7 @@ class PositionCalculatorTest {
 					List.of(new AccountBalance(of("120"), true)),
 					of("0"), List.of(),
 					List.of(new OutstandingCommitment(of("118.40"), 24, Frequency.MONTHLY)),
-					of("2500"));
+					of("2500"), of("0"), of("0"));
 			Position position = PositionCalculator.calculate(borrowed);
 
 			assertThat(position.borrowed()).isEqualTo(of("2500.00"));
@@ -135,12 +190,13 @@ class PositionCalculatorTest {
 			// BR-2's whole point: borrowing is not income, and the only lasting
 			// effect on the position is what the borrowing costs.
 			PositionInputs before = new PositionInputs(
-					List.of(new AccountBalance(of("120"), true)), of("0"), List.of(), List.of(), of("0"));
+					List.of(new AccountBalance(of("120"), true)), of("0"), List.of(), List.of(),
+					of("0"), of("0"), of("0"));
 			PositionInputs after = new PositionInputs(
 					List.of(new AccountBalance(of("120"), true)),
 					of("0"), List.of(),
 					List.of(new OutstandingCommitment(of("118.40"), 24, Frequency.MONTHLY)),
-					of("2500"));
+					of("2500"), of("0"), of("0"));
 
 			var difference = PositionCalculator.calculate(before).totalMoneyNow()
 					.subtract(PositionCalculator.calculate(after).totalMoneyNow());

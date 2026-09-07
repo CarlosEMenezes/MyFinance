@@ -109,8 +109,20 @@ public class TransactionEntity {
 		this.loanId = transaction.loanId();
 	}
 
-	Transaction toDomain(PaymentMethodKind methodKind) {
+	/**
+	 * The payment method is derived from the row rather than passed in.
+	 *
+	 * Which of the two associations is set answers "was this a card", and the
+	 * card's own kind answers "which kind". Taking the answer as an argument
+	 * would let a caller state something the row contradicts.
+	 */
+	Transaction toDomain() {
 		UUID methodId = card != null ? card.getId() : account.getId();
+		PaymentMethodKind methodKind = card == null
+				? PaymentMethodKind.ACCOUNT
+				: (card.getKind() == ie.budgetTracker.domain.cards.CardKind.CREDIT
+						? PaymentMethodKind.CREDIT_CARD
+						: PaymentMethodKind.DEBIT_CARD);
 
 		return new Transaction(id, type, category.getId(), amount, currency,
 				amountInDefaultCurrency, fxRate, entryDate,

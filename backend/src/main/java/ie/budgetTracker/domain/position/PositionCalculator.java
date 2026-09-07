@@ -33,7 +33,15 @@ public final class PositionCalculator {
 		// yet spent still shows as money you have. BR-2 then puts the whole
 		// repayment on the other side, and the two cancel down to the interest.
 		BigDecimal borrowed = MoneyCalculator.of(inputs.borrowed());
-		BigDecimal available = MoneyCalculator.add(inAccounts, borrowed);
+
+		// The rest of BR-1's first line: what has been earned since the balances
+		// were set, less what has been spent from them. Card spending is not
+		// subtracted here - it has not left an account, and it is already counted
+		// on the other side as part of what is owed.
+		BigDecimal available = MoneyCalculator.subtract(
+				MoneyCalculator.sum(List.of(inAccounts, borrowed,
+						MoneyCalculator.of(inputs.earnings()))),
+				MoneyCalculator.of(inputs.expensesNotOnCredit()));
 
 		BigDecimal onCards = MoneyCalculator.of(inputs.cardBalances());
 		BigDecimal onInstalments = remaining(inputs.instalmentPlans());

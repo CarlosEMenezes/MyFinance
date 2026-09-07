@@ -114,7 +114,10 @@ public class AccountService {
 				accountsForUser().stream()
 						.map(account -> new AccountBalance(account.balance(), account.includeInTotals()))
 						.toList(),
-				MoneyCalculator.ZERO, List.of(), List.of(), MoneyCalculator.ZERO))
+				// Only the balances: this is BR-13's "what do the accounts add up
+				// to", not BR-1's whole position, and the zeroes say so.
+				MoneyCalculator.ZERO, List.of(), List.of(), MoneyCalculator.ZERO,
+				MoneyCalculator.ZERO, MoneyCalculator.ZERO))
 				.availableNow();
 	}
 

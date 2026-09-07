@@ -4,6 +4,8 @@ import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.transactions.TransactionRepository;
 import ie.budgetTracker.domain.transactions.PaymentMethodKind;
 import ie.budgetTracker.domain.transactions.Transaction;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
@@ -55,6 +57,13 @@ class JpaTransactionRepository implements TransactionRepository {
 						.orElseThrow(() -> AppException.notFound("No account with id " + methodId));
 
 		return entries.save(new TransactionEntity(owner, category, account, card, transaction))
-				.toDomain(transaction.paymentMethod().kind());
+				.toDomain();
+	}
+
+	@Override
+	public List<Transaction> findForUserInPeriod(UUID userId, LocalDate from, LocalDate to) {
+		return entries.findInPeriod(userId, from, to).stream()
+				.map(TransactionEntity::toDomain)
+				.toList();
 	}
 }
