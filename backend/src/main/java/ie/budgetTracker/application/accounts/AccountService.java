@@ -4,6 +4,7 @@ import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.accounts.dto.AccountResponse;
 import ie.budgetTracker.application.accounts.dto.CreateAccountRequest;
 import ie.budgetTracker.application.accounts.dto.CreatePocketRequest;
+import ie.budgetTracker.application.cards.CardService;
 import ie.budgetTracker.application.identity.CurrentUser;
 import ie.budgetTracker.application.support.Money;
 import ie.budgetTracker.domain.accounts.Account;
@@ -14,6 +15,7 @@ import ie.budgetTracker.domain.position.AccountBalance;
 import ie.budgetTracker.domain.position.PositionCalculator;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,16 +31,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountService {
 
 	private final AccountRepository accounts;
+	private final CardService cards;
 	private final CurrentUser currentUser;
 
-	public AccountService(AccountRepository accounts, CurrentUser currentUser) {
+	public AccountService(AccountRepository accounts, CardService cards, CurrentUser currentUser) {
 		this.accounts = accounts;
+		this.cards = cards;
 		this.currentUser = currentUser;
 	}
 
 	@Transactional(readOnly = true)
 	public List<AccountResponse> list() {
-		return accountsForUser().stream().map(AccountResponse::from).toList();
+		// Read once for the whole list rather than per account: a card list per
+		// row is the same answer fetched N times.
+		Map<UUID, List<String>> cardNames = cards.cardNamesByAccount();
+
+		return accountsForUser().stream()
+				.map(account -> AccountResponse.from(account,
+						cardNames.getOrDefault(account.id(), List.of())))
+				.toList();
 	}
 
 	private List<Account> accountsForUser() {
@@ -47,9 +58,11 @@ public class AccountService {
 
 	@Transactional
 	public AccountResponse create(CreateAccountRequest request) {
+		// A brand new account has nothing settling from it yet, and an empty list
+		// says exactly that.
 		return AccountResponse.from(create(request.name(), request.kind(),
 				Money.fromMinorUnits(request.balance()), request.currency(),
-				request.includeInTotals(), request.note()));
+				request.includeInTotals(), request.note()), List.of());
 	}
 
 	Account create(String name, AccountKind kind, BigDecimal balance, Currency currency,
@@ -74,8 +87,11 @@ public class AccountService {
 	 */
 	@Transactional
 	public AccountResponse addPocket(UUID accountId, CreatePocketRequest request) {
-		return AccountResponse.from(
-				addPocket(accountId, request.name(), Money.fromMinorUnits(request.balance())));
+		Account parent =
+				addPocket(accountId, request.name(), Money.fromMinorUnits(request.balance()));
+
+		return AccountResponse.from(parent,
+				cards.cardNamesByAccount().getOrDefault(accountId, List.of()));
 	}
 
 	Account addPocket(UUID accountId, String name, BigDecimal balance) {

@@ -53,7 +53,8 @@ class AccountControllerTest extends ie.budgetTracker.api.WebSliceTest {
 	private static AccountResponse savings() {
 		return AccountResponse.from(new Account(SAVINGS_ID, "AIB Savings", AccountKind.SAVINGS,
 				of("1450.00"), Currency.EUR, true, "ring-fenced for goals",
-				List.of(new Pocket(UUID.randomUUID(), "MacBook Air M4", of("410.00")))));
+				List.of(new Pocket(UUID.randomUUID(), "MacBook Air M4", of("410.00")))),
+				List.of("AIB debit"));
 	}
 
 	@Nested
@@ -90,6 +91,18 @@ class AccountControllerTest extends ie.budgetTracker.api.WebSliceTest {
 		}
 
 		@Test
+		@DisplayName("BR-4, BR-5: names the cards that settle from the account")
+		void namesTheCardsThatSettleFromTheAccount() throws Exception {
+			given(accounts.list()).willReturn(List.of(savings()));
+
+			// Names only. A card balance belongs to what is owed (BR-1), never to
+			// the account it settles from, so nothing here is a figure.
+			mvc.perform(get("/api/v1/accounts")
+					.cookie(session()))
+					.andExpect(jsonPath("$[0].cardNames[0]").value("AIB debit"));
+		}
+
+		@Test
 		void answersAnEmptyListRatherThanNothing() throws Exception {
 			given(accounts.list()).willReturn(List.of());
 
@@ -109,7 +122,8 @@ class AccountControllerTest extends ie.budgetTracker.api.WebSliceTest {
 		void createsAnAccountAndAnswers201() throws Exception {
 			given(accounts.create(any(CreateAccountRequest.class)))
 					.willReturn(AccountResponse.from(new Account(UUID.randomUUID(), "Wallet",
-							AccountKind.CASH, of("120.00"), Currency.EUR, true, null, List.of())));
+							AccountKind.CASH, of("120.00"), Currency.EUR, true, null, List.of()),
+							List.of()));
 
 			mvc.perform(post("/api/v1/accounts")
 					.cookie(session())

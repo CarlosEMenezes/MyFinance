@@ -132,4 +132,68 @@ class StatementCycleCalculatorTest {
 					.hasMessageContaining("dueDay");
 		}
 	}
+
+	@Nested
+	@DisplayName("the three dates a card screen shows (BR-4)")
+	class CycleDates {
+
+		/** The date the prototype hard-codes as "today". */
+		private static final LocalDate TODAY = LocalDate.parse("2026-08-31");
+
+		@Test
+		void answersTheSameThreeDatesTheCardsPageWasBuiltAgainst() {
+			CardCycleDates dates =
+					StatementCycleCalculator.cycleDatesFor(TODAY, new StatementCycle(25, 5));
+
+			// These are the Visa fixture in frontend/src/test/fixtures.ts. The page
+			// has been rendering them for weeks; the server now has to mean them.
+			assertThat(dates.nextBillDate()).isEqualTo(LocalDate.parse("2026-09-05"));
+			assertThat(dates.billDateOnClosingDay()).isEqualTo(LocalDate.parse("2026-09-05"));
+			assertThat(dates.billDateAfterClosingDay()).isEqualTo(LocalDate.parse("2026-10-05"));
+		}
+
+		@Test
+		void namesTheBillThatHasNotHappenedYetThisMonth() {
+			// On the 3rd, with the bill due on the 5th, the next one is this month's
+			// - not next month's. `nextBillDate` answers "what leaves my account
+			// next", which is a different question from where a purchase lands.
+			CardCycleDates dates = StatementCycleCalculator.cycleDatesFor(
+					LocalDate.parse("2026-08-03"), new StatementCycle(25, 5));
+
+			assertThat(dates.nextBillDate()).isEqualTo(LocalDate.parse("2026-08-05"));
+		}
+
+		@Test
+		void putsSpendTheDayAfterClosingOnTheFollowingStatement() {
+			// The two illustration dates are a month apart here, which is exactly
+			// what BR-4 asks a card screen to make obvious: one day later costs you
+			// a whole extra month of credit.
+			CardCycleDates dates =
+					StatementCycleCalculator.cycleDatesFor(TODAY, new StatementCycle(25, 5));
+
+			assertThat(dates.billDateAfterClosingDay())
+					.isEqualTo(dates.billDateOnClosingDay().plusMonths(1));
+		}
+
+		@Test
+		void stepsOverTheEndOfFebruaryOnTheLatestClosingDay() {
+			// Closing on the 28th, the day after closing is the 1st of March, which
+			// belongs to March's statement. No clamping and no skipped month.
+			CardCycleDates dates = StatementCycleCalculator.cycleDatesFor(
+					LocalDate.parse("2026-02-10"), new StatementCycle(28, 1));
+
+			assertThat(dates.billDateOnClosingDay()).isEqualTo(LocalDate.parse("2026-03-01"));
+			assertThat(dates.billDateAfterClosingDay()).isEqualTo(LocalDate.parse("2026-04-01"));
+		}
+
+		@Test
+		void carriesTheThreeDatesAcrossTheYearEnd() {
+			CardCycleDates dates = StatementCycleCalculator.cycleDatesFor(
+					LocalDate.parse("2026-12-27"), new StatementCycle(25, 5));
+
+			assertThat(dates.nextBillDate()).isEqualTo(LocalDate.parse("2027-01-05"));
+			assertThat(dates.billDateOnClosingDay()).isEqualTo(LocalDate.parse("2027-01-05"));
+			assertThat(dates.billDateAfterClosingDay()).isEqualTo(LocalDate.parse("2027-02-05"));
+		}
+	}
 }

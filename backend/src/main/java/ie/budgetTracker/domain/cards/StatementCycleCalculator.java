@@ -50,4 +50,25 @@ public final class StatementCycleCalculator {
 		LocalDate thisMonth = from.withDayOfMonth(dueDay);
 		return thisMonth.isBefore(from) ? thisMonth.plusMonths(1) : thisMonth;
 	}
+
+	/**
+	 * The three dates a card screen shows, all from one cycle (BR-4).
+	 *
+	 * Computed here rather than on the screen: the cycle is persisted, and
+	 * ADR-7 puts every persisted figure on this side. The frontend renders
+	 * these; it does not derive them.
+	 *
+	 * "The day after closing" is taken as a real date rather than as
+	 * {@code closingDay + 1}, so a card closing on the 28th of February steps to
+	 * the 1st of March and joins March's statement instead of asking what the
+	 * 29th means.
+	 */
+	public static CardCycleDates cycleDatesFor(LocalDate today, StatementCycle cycle) {
+		LocalDate closingDayThisMonth = today.withDayOfMonth(cycle.closingDay());
+
+		return new CardCycleDates(
+				nextDueDateOnOrAfter(today, cycle.dueDay()),
+				billDateFor(closingDayThisMonth, cycle),
+				billDateFor(closingDayThisMonth.plusDays(1), cycle));
+	}
 }

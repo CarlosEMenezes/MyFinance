@@ -100,8 +100,7 @@ class UserIsolationTest {
 		Cookie ada = register("ada2@example.com");
 		Cookie grace = register("grace2@example.com");
 
-		String adasAccount = createAccount(ada, "Ada's wallet");
-		String id = adasAccount.replaceAll("^\\{\"id\":\"([^\"]+)\".*$", "$1");
+		String id = idOf(createAccount(ada, "Ada's wallet"));
 
 		// A 403 would confirm the id exists, which tells someone enumerating ids
 		// exactly which ones are real. As far as this API is concerned, another
@@ -111,6 +110,61 @@ class UserIsolationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"Sneaky","balance":100}"""))
+				.andExpect(status().isNotFound());
+	}
+
+	private String createDebitCard(Cookie session, String name, String accountId)
+			throws Exception {
+		return mvc().perform(post("/api/v1/cards")
+				.cookie(session)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"kind":"DEBIT","name":"%s","accountId":"%s"}"""
+						.formatted(name, accountId)))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+	}
+
+	/** The id out of a creation response, whose first field is always `id`. */
+	private static String idOf(String json) {
+		return json.replaceAll("^\\{\"id\":\"([^\"]+)\".*$", "$1");
+	}
+
+	@Test
+	@DisplayName("a user sees only their own cards (BR-4, BR-5)")
+	void aUserSeesOnlyTheirOwnCards() throws Exception {
+		Cookie ada = register("ada5@example.com");
+		Cookie grace = register("grace5@example.com");
+
+		createDebitCard(ada, "Ada card", idOf(createAccount(ada, "Ada wallet")));
+		createDebitCard(grace, "Grace card", idOf(createAccount(grace, "Grace wallet")));
+
+		// A card has no owner column: it belongs to whoever owns the account it
+		// settles from. This is what proves that join is actually filtering.
+		mvc().perform(get("/api/v1/cards").cookie(ada))
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].name").value("Ada card"));
+
+		mvc().perform(get("/api/v1/cards").cookie(grace))
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].name").value("Grace card"));
+	}
+
+	@Test
+	@DisplayName("a card cannot be hung off another user's account, and answers 404")
+	void aCardCannotBeHungOffAnotherUsersAccount() throws Exception {
+		Cookie ada = register("ada6@example.com");
+		Cookie grace = register("grace6@example.com");
+
+		String adasAccount = idOf(createAccount(ada, "Ada wallet"));
+
+		// 404, not 403: a 403 would confirm the account id is real (ADR-11).
+		mvc().perform(post("/api/v1/cards")
+				.cookie(grace)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"kind":"DEBIT","name":"Sneaky","accountId":"%s"}"""
+						.formatted(adasAccount)))
 				.andExpect(status().isNotFound());
 	}
 
@@ -141,6 +195,7 @@ class UserIsolationTest {
 	void withoutASessionNothingIsReadable() throws Exception {
 		// The default is deny: a new endpoint is protected the moment it exists.
 		mvc().perform(get("/api/v1/accounts")).andExpect(status().isUnauthorized());
+		mvc().perform(get("/api/v1/cards")).andExpect(status().isUnauthorized());
 		mvc().perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
 	}
 

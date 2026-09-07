@@ -35,7 +35,12 @@ public record AccountResponse(
 	public record PocketResponse(UUID id, UUID accountId, String name, long balance) {
 	}
 
-	public static AccountResponse from(Account account) {
+	/**
+	 * @param cardNames the cards that settle from this account (BR-4, BR-5).
+	 *                  Names only: nothing here is a figure, so nothing here can
+	 *                  enter a total.
+	 */
+	public static AccountResponse from(Account account, List<String> cardNames) {
 		return new AccountResponse(
 				account.id(),
 				account.name(),
@@ -48,8 +53,6 @@ public record AccountResponse(
 						.map(pocket -> new PocketResponse(pocket.id(), account.id(), pocket.name(),
 								Money.toMinorUnits(pocket.balance())))
 						.toList(),
-				// Cards arrive in spec §6 step 4; until then the account genuinely
-				// has none to name, and an empty list says exactly that.
-				List.of());
+				cardNames);
 	}
 }

@@ -16,6 +16,7 @@ import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.accounts.dto.AccountResponse;
 import ie.budgetTracker.application.accounts.dto.CreateAccountRequest;
 import ie.budgetTracker.application.accounts.dto.CreatePocketRequest;
+import ie.budgetTracker.application.cards.CardService;
 import ie.budgetTracker.application.identity.CurrentUser;
 import ie.budgetTracker.domain.accounts.Account;
 import ie.budgetTracker.domain.accounts.AccountKind;
@@ -43,11 +44,18 @@ class AccountServiceTest {
 	@Mock
 	private CurrentUser currentUser;
 
+	/**
+	 * BR-4, BR-5: the account list names the cards that settle from it. Mocked
+	 * here, because which cards exist is not a question BR-13 answers.
+	 */
+	@Mock
+	private CardService cards;
+
 	private AccountService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new AccountService(accounts, currentUser);
+		service = new AccountService(accounts, cards, currentUser);
 	}
 
 	private static Account account(String name, String balance, boolean includeInTotals) {

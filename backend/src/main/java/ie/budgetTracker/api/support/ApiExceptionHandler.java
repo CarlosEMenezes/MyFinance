@@ -30,12 +30,19 @@ class ApiExceptionHandler {
 			case NOT_FOUND -> HttpStatus.NOT_FOUND;
 			case CONFLICT -> HttpStatus.CONFLICT;
 			case UNAUTHORISED -> HttpStatus.UNAUTHORIZED;
+			case INVALID -> HttpStatus.BAD_REQUEST;
 		};
 
 		ProblemDetail problem = ProblemDetail.forStatus(status);
 		problem.setTitle(exception.getMessage());
 		problem.setType(URI.create("about:blank"));
 		problem.setDetail("");
+		if (exception.field() != null) {
+			// The same `errors` shape bean validation produces below, so a form
+			// reading it does not have to know which of the two refused it.
+			problem.setProperty("errors",
+					List.of(new FieldError(exception.field(), exception.getMessage())));
+		}
 		return problem;
 	}
 
