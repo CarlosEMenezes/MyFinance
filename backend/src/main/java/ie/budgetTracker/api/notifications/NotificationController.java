@@ -7,12 +7,10 @@ import ie.budgetTracker.application.notifications.dto.NotificationSettingsRespon
 import ie.budgetTracker.application.notifications.dto.UpdateNotificationSettingsRequest;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -45,13 +43,19 @@ class NotificationController {
 	/**
 	 * BR-12: one item or the whole queue, through the same write.
 	 *
-	 * 204: the caller already knows which keys it sent, and the queue it would
-	 * be handed back is one it is about to refetch anyway.
+	 * Answers the recomputed queue, because that is what the frozen contract
+	 * declares (`markNotificationsRead` returns `Notification[]`). A 204 would
+	 * have been defensible on its own terms and is not mine to choose: the page
+	 * is already written to this shape, and a promise typed as a list that
+	 * resolves to `undefined` is a lie the compiler cannot catch (ADR-12).
+	 *
+	 * Recomputed rather than echoed back, so what the caller receives is the
+	 * queue as it now stands rather than the queue it thought it was changing.
 	 */
 	@PatchMapping("/read")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void markRead(@Valid @RequestBody MarkNotificationsReadRequest request) {
+	List<NotificationResponse> markRead(@Valid @RequestBody MarkNotificationsReadRequest request) {
 		notifications.markRead(request);
+		return notifications.queue();
 	}
 
 	@PatchMapping("/settings")

@@ -75,7 +75,10 @@ class NotificationIntegrationTest extends IntegrationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"keys":["%s"],"read":true}""".formatted(key)))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isOk())
+				// The answer is the queue as it now stands, which is what the page
+				// is typed to receive.
+				.andExpect(jsonPath("$[0].readAt").exists());
 
 		// The queue is rebuilt from scratch, and the item is still read: the key
 		// is stable, which is what read state is stored against.
@@ -87,7 +90,8 @@ class NotificationIntegrationTest extends IntegrationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"keys":["%s"],"read":false}""".formatted(key)))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].readAt").doesNotExist());
 
 		// Unread is the absence of a row, not a row saying false.
 		mvc().perform(get("/api/v1/notifications").cookie(ada))

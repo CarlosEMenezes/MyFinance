@@ -65,21 +65,36 @@ loan principals, where the spec adds them to `availableNow` as their own term
 and the code had folded them into the account balances. The spec was right and
 the code was wrong; the code changed.
 
-## MSW is temporary
+## MSW is temporary as a *backend*, not as a test double
 
-`frontend/src/test/handlers.ts` is the contract standing in for a backend that
-did not exist yet. It is **deleted when the real API lands, not extended.** A
-handler answering something `types/api.ts` does not promise is a page inventing
-an endpoint, and the frozen contract stops meaning anything the moment that is
-allowed.
+`frontend/src/test/handlers.ts` does two jobs, and only one of them ends when
+the real API lands.
+
+As a **stand-in backend** — the `npm run dev` browser worker — it is temporary.
+Once the real API answers, `VITE_USE_MOCK_API=false` is the default and the
+worker is what goes.
+
+As a **test double** it stays. `src/test/server.ts` builds the node server for
+the component and page suites from these same handlers, and every one of the
+frontend tests runs against them. Deleting the file would delete that suite,
+which the working agreement forbids outright.
+
+The rule that does not change: **a handler may never answer something
+`types/api.ts` does not promise.** A page inventing an endpoint is how a frozen
+contract stops meaning anything, and it is just as possible in a test as in a
+browser.
+
+An earlier draft of this ADR said simply "deleted when the real API lands".
+That was written before the distinction mattered and would have destroyed 674
+passing tests. It is corrected here rather than quietly dropped.
 
 ## Consequences
 
 - Every backend feature slice is written to a contract that already exists and
   is already exercised by a page. If a DTO cannot match it, that is a finding
   to report, not a licence to change the frontend.
-- The final step of Phase 1 is a swap, not an integration: delete
-  `handlers.ts`, set `VITE_USE_MOCK_API=false`, and confirm every page renders
+- The final step of Phase 1 is a swap, not an integration: set
+  `VITE_USE_MOCK_API=false`, run the real API, and confirm every page renders
   the figures it rendered against fixtures. Any difference is a drift bug the
   vectors should have caught.
 - Until that swap, `git diff --name-only` should show nothing under

@@ -74,22 +74,28 @@ class NotificationControllerTest extends ie.budgetTracker.api.WebSliceTest {
 	}
 
 	@Test
-	@DisplayName("BR-12: marking read answers 204, because the caller knows what it sent")
-	void markingReadAnswers204() throws Exception {
+	@DisplayName("BR-12: marking read answers the recomputed queue, as the contract declares")
+	void markingReadAnswersTheQueue() throws Exception {
+		given(notifications.queue()).willReturn(List.of(visaBill()));
+
+		// The frozen contract types this call as returning Notification[], and a
+		// promise typed as a list that resolves to undefined is a lie the
+		// compiler cannot catch (ADR-12).
 		mvc.perform(patch("/api/v1/notifications/read")
 				.cookie(session())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"keys":["card-visa","loan-1"],"read":true}"""))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].key").value("card-visa"));
 
 		Mockito.verify(notifications).markRead(any(MarkNotificationsReadRequest.class));
 	}
 
 	@Test
 	void refusesAReadRequestThatNamesNothing() throws Exception {
-		// A PATCH with no keys is a write that would change nothing, answered 204
-		// as though it had.
+		// A PATCH naming no keys is a write that would change nothing, answered
+		// as though it had changed something.
 		mvc.perform(patch("/api/v1/notifications/read")
 				.cookie(session())
 				.contentType(MediaType.APPLICATION_JSON)
