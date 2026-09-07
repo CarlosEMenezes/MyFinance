@@ -2,6 +2,8 @@ package ie.budgetTracker.domain.goals;
 
 import ie.budgetTracker.domain.money.MoneyCalculator;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.math.RoundingMode;
 
 /**
@@ -81,5 +83,34 @@ public final class GoalCalculator {
 			throw new IllegalArgumentException(
 					"months until the target must be positive, but was " + months);
 		}
+	}
+
+	/**
+	 * BR-11: where the plan says progress should have reached by today.
+	 *
+	 * The pace marker is what turns a progress bar into a judgement. A bar at
+	 * 40% says nothing on its own; 40% against a pace of 25% is ahead, and
+	 * against 70% is a goal about to be missed.
+	 *
+	 * Measured in days rather than months, because a marker that moved once a
+	 * month would sit still for four weeks and then jump.
+	 */
+	public static int pacePercent(LocalDate startedOn, LocalDate targetDate, LocalDate today) {
+		if (!targetDate.isAfter(startedOn)) {
+			// A goal due on the day it started is either done or impossible, and
+			// either way the plan says it should be complete.
+			return ONE_HUNDRED.intValue();
+		}
+
+		long whole = ChronoUnit.DAYS.between(startedOn, targetDate);
+		long elapsed = ChronoUnit.DAYS.between(startedOn, today);
+
+		if (elapsed <= 0) {
+			return 0;
+		}
+		if (elapsed >= whole) {
+			return ONE_HUNDRED.intValue();
+		}
+		return Math.toIntExact(Math.round(elapsed * 100.0 / whole));
 	}
 }

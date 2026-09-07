@@ -293,7 +293,10 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 - [x] **Dashboard (§6 step 8)** — `GET /dashboard`, the whole overview in one call. BR-1, BR-2, BR-3, BR-9, BR-10 and BR-15 assembled server-side, so Overview, Earnings and Expenses are three readings of one calculation rather than three calculations that could disagree about what August contained. **`PeriodWindows` was extracted** in the same commit: two endpoints resolving the window separately would eventually resolve it differently, and BR-10 counts on those exact dates.
 - [x] **BR-1 was incomplete, and the dashboard is what surfaced it.** `PositionInputs` had accounts, cards, plans, loans and borrowings but neither of BR-1's last two terms — *"+ Σ earnings − Σ expenses not paid by credit card"*. Added, with tests naming the rule, including the one that matters: **card spending is not subtracted from what is available**, because it has not left an account and is already counted on the other side as what is owed. Subtracting it in both places charged the same purchase twice.
 - [x] **A card purchase counts in the month its bill falls** — the period query reads `COALESCE(planned_expense_date, entry_date)`. Reading it by the day it was spent would put an August purchase into August while its plan sat in September, and the variance would be nonsense in both months. Asserted end to end.
-- [ ] Goals (§6 step 9) → Notifications.
+- [x] **Goals (§6 step 9)** — BR-11 end to end. `V10__goals.sql`, `GoalEntity`, `GoalService`, `/goals`. **Nothing derived is stored**: the gap, the contribution and the pace marker all move with today, so a stored copy would be a figure that was true on the morning it was written. `GoalCalculator` gained **`pacePercent`** — measured in days, so the marker never sits still for a month and then jumps. It is what turns a bar into a judgement: 40% saved says nothing until you know whether the plan said 25% or 70%.
+- [x] **`savedAmount` has one writer, and the schema says so.** BR-18 is explicit that tagging a goal never allocates toward it, so the port has no "allocate" method to become a second source of truth when Phase 2 arrives.
+- [x] **No what-if endpoint, deliberately.** Spec §5 names the slider as a case for the frontend's own pure function and ADR-7 allows it: a round trip per drag is the cost that exception exists to avoid.
+- [ ] Notifications (§6 step 10).
 
 **`./mvnw verify` green — 420 tests.**
 
@@ -301,7 +304,7 @@ Both `lib/` modules sit at 100% line and function coverage; branch coverage is 9
 
 - [x] **Idempotent money writes (spec §4)** — `V9__idempotent_requests.sql` and `IdempotentRequests`. An `Idempotency-Key` on `POST /transactions` or `POST /loans` is **honoured when present, never required**: `lib/http.ts` sends none and the contract is frozen (ADR-12), so requiring one would break every page that works today. A retry is answered with the **stored answer, replayed verbatim** — re-deriving it could produce a different one, and a retry that answers differently is not idempotent. The key is scoped to the user **in the primary key**, because a key is chosen by the client and two people can pick the same one. The same key on a different endpoint is a **409**, not a match: replaying a loan as a transaction would be worse than creating a second one.
 
-**`./mvnw verify` green — 463 tests.**
+**`./mvnw verify` green — 487 tests.**
 
 **One thing is deliberately refused rather than half-done.** `CreateTransactionRequest.financing` is part of the frozen contract and the log form sends it, but instalment plans are spec §6 step 7 — the very next slice. Until then a request carrying it is answered **400, naming the field**. Accepting the terms and dropping them would save the entry as an ordinary purchase, leave no instalment plan behind, and say so on no screen; a refusal is visible, and it is one commit long.
 

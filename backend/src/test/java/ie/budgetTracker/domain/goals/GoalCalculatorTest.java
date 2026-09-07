@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.time.LocalDate;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -191,6 +193,52 @@ class GoalCalculatorTest {
 					() -> GoalCalculator.plan(of("0"), of("0"), ContributionFrequency.MONTHLY, 4))
 					.isInstanceOf(IllegalArgumentException.class)
 					.hasMessageContaining("target");
+		}
+	}
+
+	@Nested
+	@DisplayName("BR-11, the pace marker")
+	class Pace {
+
+		private static final LocalDate STARTED = LocalDate.parse("2026-01-01");
+		private static final LocalDate TARGET = LocalDate.parse("2027-01-01");
+
+		@Test
+		void isNothingOnTheDayTheGoalStarts() {
+			assertThat(GoalCalculator.pacePercent(STARTED, TARGET, STARTED)).isZero();
+		}
+
+		@Test
+		void isHalfwayHalfwayThrough() {
+			// 2 July 2026 is day 182 of a 365-day window.
+			assertThat(GoalCalculator.pacePercent(STARTED, TARGET,
+					LocalDate.parse("2026-07-02"))).isEqualTo(50);
+		}
+
+		@Test
+		void isCompleteOnTheTargetDate() {
+			assertThat(GoalCalculator.pacePercent(STARTED, TARGET, TARGET)).isEqualTo(100);
+		}
+
+		@Test
+		void doesNotRunPastCompleteAfterTheTargetDate() {
+			// A missed goal reads 100% behind, not 140%.
+			assertThat(GoalCalculator.pacePercent(STARTED, TARGET,
+					LocalDate.parse("2027-06-01"))).isEqualTo(100);
+		}
+
+		@Test
+		void treatsAGoalDueOnTheDayItStartedAsAlreadyDue() {
+			assertThat(GoalCalculator.pacePercent(STARTED, STARTED, STARTED)).isEqualTo(100);
+		}
+
+		@Test
+		@DisplayName("moves every day, so the marker never sits still for a month")
+		void movesEveryDay() {
+			int today = GoalCalculator.pacePercent(LocalDate.parse("2026-01-01"),
+					LocalDate.parse("2026-01-11"), LocalDate.parse("2026-01-06"));
+
+			assertThat(today).isEqualTo(50);
 		}
 	}
 }
