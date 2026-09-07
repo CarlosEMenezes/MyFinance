@@ -2,6 +2,7 @@ package ie.budgetTracker.api.transactions;
 
 import static ie.budgetTracker.domain.money.MoneyCalculator.of;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 import ie.budgetTracker.application.AppException;
@@ -23,11 +25,13 @@ import ie.budgetTracker.domain.transactions.Transaction;
 import ie.budgetTracker.domain.transactions.TransactionType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * The wire shape of `POST /transactions`, against the frozen contract
@@ -47,6 +51,10 @@ class TransactionControllerTest extends ie.budgetTracker.api.WebSliceTest {
 
 	@MockitoBean
 	private TransactionService transactions;
+
+	/** The application's own mapper, so a replay is byte-for-byte what it wrote. */
+	@Autowired
+	private ObjectMapper json;
 
 	private static final String BODY = """
 			{"type":"EXPENSE","categoryId":"%s","amount":10000,"currency":"USD",
@@ -123,6 +131,42 @@ class TransactionControllerTest extends ie.budgetTracker.api.WebSliceTest {
 						.formatted(GROCERIES, VISA)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors[0].field").value("amount"));
+	}
+
+	@Test
+	@DisplayName("spec §4: a retry with the same key is answered, not repeated")
+	void aRetryWithTheSameKeyIsAnswered() throws Exception {
+		given(transactions.log(any(CreateTransactionRequest.class))).willReturn(logged());
+		given(idempotencyStore.replay(any(), eq("a-key"), eq("POST /transactions")))
+				.willReturn(Optional.of(json.writeValueAsString(logged())));
+
+		mvc.perform(post("/api/v1/transactions")
+				.cookie(session())
+				.header("Idempotency-Key", "a-key")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(BODY))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.amountInDefaultCurrency").value(9210));
+
+		// The entry is not written a second time: a double tap must not log the
+		// expense twice, and every total built on top would be wrong.
+		Mockito.verify(transactions, Mockito.never()).log(any());
+	}
+
+	@Test
+	@DisplayName("a request with no key behaves exactly as before")
+	void aRequestWithNoKeyIsUnchanged() throws Exception {
+		given(transactions.log(any(CreateTransactionRequest.class))).willReturn(logged());
+
+		// The frozen contract sends no key (ADR-12), so this is the ordinary path
+		// and it must stay ordinary.
+		mvc.perform(post("/api/v1/transactions")
+				.cookie(session())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(BODY))
+				.andExpect(status().isCreated());
+
+		Mockito.verifyNoInteractions(idempotencyStore);
 	}
 
 	@Test

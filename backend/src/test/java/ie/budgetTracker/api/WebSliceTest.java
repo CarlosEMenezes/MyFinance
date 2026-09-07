@@ -4,7 +4,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ie.budgetTracker.api.auth.SessionCookie;
+import ie.budgetTracker.api.support.IdempotentRequests;
 import ie.budgetTracker.application.auth.AuthService;
+import ie.budgetTracker.application.identity.CurrentUser;
+import ie.budgetTracker.application.support.IdempotencyStore;
 import jakarta.servlet.http.Cookie;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,7 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * which passes or fails for reasons that have nothing to do with this
  * application's rules.
  */
-@Import(ie.budgetTracker.api.auth.SecurityConfig.class)
+@Import({ ie.budgetTracker.api.auth.SecurityConfig.class, IdempotentRequests.class })
 public abstract class WebSliceTest {
 
 	protected static final UUID SIGNED_IN_USER =
@@ -34,6 +37,18 @@ public abstract class WebSliceTest {
 
 	@MockitoBean
 	private AuthService auth;
+
+	/**
+	 * Spec §4's idempotency helper is a real bean here, with its store mocked.
+	 *
+	 * A slice that mocked the helper itself would prove the controller compiles
+	 * and nothing about what a retried POST does.
+	 */
+	@MockitoBean
+	protected IdempotencyStore idempotencyStore;
+
+	@MockitoBean
+	private CurrentUser currentUser;
 
 	@BeforeEach
 	void grantASession() {

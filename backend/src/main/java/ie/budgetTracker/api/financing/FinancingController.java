@@ -1,5 +1,6 @@
 package ie.budgetTracker.api.financing;
 
+import ie.budgetTracker.api.support.IdempotentRequests;
 import ie.budgetTracker.application.financing.FinancingService;
 import ie.budgetTracker.application.financing.dto.CreateLoanRequest;
 import ie.budgetTracker.application.financing.dto.InstalmentPlanResponse;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,9 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
 class FinancingController {
 
 	private final FinancingService financing;
+	private final IdempotentRequests once;
 
-	FinancingController(FinancingService financing) {
+	FinancingController(FinancingService financing, IdempotentRequests once) {
 		this.financing = financing;
+		this.once = once;
 	}
 
 	@GetMapping("/instalment-plans")
@@ -50,11 +54,19 @@ class FinancingController {
 		return financing.loans();
 	}
 
-	/** BR-2: principal, terms and deposit account, in one write. */
+	/**
+	 * BR-2: principal, terms and deposit account, in one write.
+	 *
+	 * Spec §4's idempotency key applies here as much as to a transaction: a
+	 * loan recorded twice doubles what is available and what is owed.
+	 */
 	@PostMapping("/loans")
 	@ResponseStatus(HttpStatus.CREATED)
-	LoanResponse createLoan(@Valid @RequestBody CreateLoanRequest request) {
-		return financing.createLoan(request);
+	LoanResponse createLoan(@Valid @RequestBody CreateLoanRequest request,
+			@RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey) {
+
+		return once.once(idempotencyKey, "POST /loans", LoanResponse.class,
+				() -> financing.createLoan(request));
 	}
 
 	@PostMapping("/instalment-plans/preview")

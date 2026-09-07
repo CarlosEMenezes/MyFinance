@@ -187,6 +187,69 @@ class TransactionIntegrationTest extends IntegrationTest {
 	}
 
 	@Test
+	@DisplayName("spec §4: the same idempotency key logs one entry, not two")
+	void theSameIdempotencyKeyLogsOneEntry() throws Exception {
+		Cookie ada = register("ada-retry@example.com");
+		String account = accountFor(ada);
+		String groceries = groceriesFor(ada);
+
+		String body = """
+				{"type":"EXPENSE","categoryId":"%s","amount":5000,"currency":"EUR",
+				 "date":"2026-08-20","paymentMethodId":"%s"}""".formatted(groceries, account);
+
+		String first = mvc().perform(post("/api/v1/transactions")
+				.cookie(ada)
+				.header("Idempotency-Key", "one-tap")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+
+		String retry = mvc().perform(post("/api/v1/transactions")
+				.cookie(ada)
+				.header("Idempotency-Key", "one-tap")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+
+		// The same entry, not a second one with the same figures. A double tap
+		// that logged twice would leave every total built on it quietly wrong.
+		org.assertj.core.api.Assertions.assertThat(idOf(retry)).isEqualTo(idOf(first));
+	}
+
+	@Test
+	@DisplayName("spec §4: one key cannot be reused for a different kind of request")
+	void oneKeyCannotBeReusedForADifferentRequest() throws Exception {
+		Cookie ada = register("ada-keyclash@example.com");
+		String account = accountFor(ada);
+		String groceries = groceriesFor(ada);
+
+		mvc().perform(post("/api/v1/transactions")
+				.cookie(ada)
+				.header("Idempotency-Key", "shared")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"type":"EXPENSE","categoryId":"%s","amount":5000,"currency":"EUR",
+						 "date":"2026-08-20","paymentMethodId":"%s"}"""
+						.formatted(groceries, account)))
+				.andExpect(status().isCreated());
+
+		// Replaying a transaction as a loan would be worse than creating a second
+		// one, so the clash is reported rather than treated as a match.
+		mvc().perform(post("/api/v1/loans")
+				.cookie(ada)
+				.header("Idempotency-Key", "shared")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"label":"Credit union","principal":250000,"instalmentCount":24,
+						 "instalmentAmount":11840,"frequency":"MONTHLY",
+						 "firstDueDate":"2026-09-01","depositAccountId":"%s"}"""
+						.formatted(account)))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
 	@DisplayName("BR-5: a debit card cannot carry instalments, and says why")
 	void aDebitCardCannotCarryInstalments() throws Exception {
 		Cookie ada = register("ada-debit-financing@example.com");
