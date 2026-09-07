@@ -78,6 +78,10 @@ public class CardEntity {
 		// on this table insists on (BR-5).
 	}
 
+	UUID getId() {
+		return id;
+	}
+
 	Card toDomain() {
 		if (kind == CardKind.DEBIT) {
 			return new DebitCard(id, name, account.getId());

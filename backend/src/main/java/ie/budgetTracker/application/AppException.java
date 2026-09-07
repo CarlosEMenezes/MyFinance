@@ -17,7 +17,15 @@ public class AppException extends RuntimeException {
 		/** 401: who you are could not be established. */
 		UNAUTHORISED,
 		/** 400: the body was not a request this rule can make sense of. */
-		INVALID
+		INVALID,
+		/**
+		 * 503: something this request depends on could not be reached.
+		 *
+		 * BR-8 is the reason this exists. A missing exchange rate must block the
+		 * save rather than be filled in with a guess, and the caller has to be
+		 * able to tell "we could not ask" from "you asked for the wrong thing".
+		 */
+		UNAVAILABLE
 	}
 
 	private final transient Kind kind;
@@ -67,5 +75,10 @@ public class AppException extends RuntimeException {
 	/** A 400 that names the field the caller has to fix. */
 	public static AppException invalid(String field, String why) {
 		return new AppException(Kind.INVALID, why, field);
+	}
+
+	/** Something this request depends on could not be reached (BR-8). */
+	public static AppException unavailable(String why) {
+		return new AppException(Kind.UNAVAILABLE, why);
 	}
 }

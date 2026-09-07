@@ -76,6 +76,10 @@ public class CategoryEntity {
 		this.archived = category.archived();
 	}
 
+	UUID getId() {
+		return id;
+	}
+
 	Category toDomain() {
 		return new Category(id, type, name, group, plannedAmount, plannedFrequency, anchorDate,
 				archived);

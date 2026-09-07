@@ -31,6 +31,7 @@ class ApiExceptionHandler {
 			case CONFLICT -> HttpStatus.CONFLICT;
 			case UNAUTHORISED -> HttpStatus.UNAUTHORIZED;
 			case INVALID -> HttpStatus.BAD_REQUEST;
+			case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
 		};
 
 		ProblemDetail problem = ProblemDetail.forStatus(status);
