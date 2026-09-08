@@ -41,13 +41,13 @@ docker compose up -d          # postgres:17.5 on 127.0.0.1:5432
 ```
 
 ```powershell
-cd backend;  .\mvnw spring-boot:run                        # :8085
-cd frontend; $env:VITE_USE_MOCK_API='false'; npm run dev   # proxies /api to :8085
+cd backend;  .\mvnw spring-boot:run   # :8085
+cd frontend; npm run dev              # proxies /api to :8085
 ```
 
 ```bash
 cd backend  && ./mvnw spring-boot:run
-cd frontend && VITE_USE_MOCK_API=false npm run dev
+cd frontend && npm run dev
 ```
 
 The application reads `.env` itself, so nothing needs exporting. It does that
@@ -87,6 +87,13 @@ Then open `http://<your-machine-ip>:5173` on the other device. Vite binds every
 interface with `--host`, and its `/api` proxy runs on your machine — so the
 phone sees one origin and the API is reached locally.
 
+> [!TIP]
+> **If a page still shows stale figures, clear the old service worker.** The
+> fake API used to be the default, and its worker stays registered in whatever
+> browser ran it — it survives a refresh and a restart of the dev server. Once
+> per browser and per device: DevTools → Application → Service Workers →
+> *Unregister*, then hard-reload. On a phone, clearing the site data does it.
+
 > [!IMPORTANT]
 > **The `local` profile is not optional here.** The session cookie is `Secure`
 > (ADR-11), and browsers only accept a `Secure` cookie over HTTPS. Without the
@@ -95,16 +102,26 @@ phone sees one origin and the API is reached locally.
 > the sign-in itself looked like it worked. `application-local.yml` turns
 > `Secure` off for exactly this case, and says why. Never use it in production.
 
-### The frontend on its own
+### The frontend on its own, with no backend
 
 ```bash
-cd frontend && npm run dev
+cd frontend && npm run dev:mock
 ```
 
-Without `VITE_USE_MOCK_API=false` the app runs against MSW's browser worker,
-answering from the same `src/test/handlers.ts` the tests use — so what the
-browser shows is what the tests assert. A production build never contains it:
-`import.meta.env.DEV` is statically false, so the dynamic import is dropped.
+Runs against MSW's browser worker, answering from the same
+`src/test/handlers.ts` the tests use — so what the browser shows is what the
+tests assert. Useful for working on a page with no database running, and for
+reproducing exactly what a failing test sees.
+
+> [!CAUTION]
+> **The fixtures do not move.** The fake `POST /transactions` answers 201 and
+> changes no total, so a logged entry appears to save and nothing updates. That
+> is a property of the fixtures, not a bug in the page — and it is why the fake
+> API is opt-in rather than the default. If figures are not updating, check
+> which script is running first.
+
+A production build never contains the worker: `import.meta.env.DEV` is
+statically false, so the dynamic import is dropped.
 
 ---
 

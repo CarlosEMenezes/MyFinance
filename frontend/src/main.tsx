@@ -21,16 +21,23 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Until the backend exists, `npm run dev` runs against the same fake API the
- * tests use, so the work can actually be looked at rather than only asserted.
- * Opt out with `VITE_USE_MOCK_API=false` once there is a server on :8085.
+ * The fake API is now **opt in**: `npm run dev:mock`, and nothing else.
+ *
+ * It used to be the default, because for most of this project there was no
+ * backend to talk to. Now there is, and a default that quietly serves fixtures
+ * is a trap: writes appear to succeed, the figures never move, and nothing on
+ * screen says which API answered. That is exactly how it caught somebody out.
+ *
+ * `--mode mock` rather than an environment variable, because an npm script
+ * cannot set one portably — `FOO=bar vite` is a bash-ism that fails on Windows,
+ * and mode is Vite's own mechanism for the job.
  *
  * A production build never reaches this: `import.meta.env.DEV` is statically
  * false there, so the dynamic import is dropped from the bundle entirely — the
  * fake backend cannot ship by accident.
  */
 async function startMockApiIfAsked(): Promise<void> {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== 'false') {
+  if (import.meta.env.DEV && import.meta.env.MODE === 'mock') {
     const { startMockApi } = await import('./test/browser');
     await startMockApi();
   }

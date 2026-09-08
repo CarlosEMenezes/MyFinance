@@ -70,9 +70,11 @@ the code was wrong; the code changed.
 `frontend/src/test/handlers.ts` does two jobs, and only one of them ends when
 the real API lands.
 
-As a **stand-in backend** — the `npm run dev` browser worker — it is temporary.
-Once the real API answers, `VITE_USE_MOCK_API=false` is the default and the
-worker is what goes.
+As a **stand-in backend** it was temporary, and that has now happened: the
+real API answers, so `npm run dev` talks to it and the worker moved behind an
+explicit `npm run dev:mock`. It was left as the default one commit too long,
+and the cost was real — a logged entry against fixtures returns 201 and moves
+no total, which is indistinguishable from a broken page.
 
 As a **test double** it stays. `src/test/server.ts` builds the node server for
 the component and page suites from these same handlers, and every one of the
@@ -93,10 +95,9 @@ passing tests. It is corrected here rather than quietly dropped.
 - Every backend feature slice is written to a contract that already exists and
   is already exercised by a page. If a DTO cannot match it, that is a finding
   to report, not a licence to change the frontend.
-- The final step of Phase 1 is a swap, not an integration: set
-  `VITE_USE_MOCK_API=false`, run the real API, and confirm every page renders
-  the figures it rendered against fixtures. Any difference is a drift bug the
-  vectors should have caught.
+- The final step of Phase 1 is a swap, not an integration: run the real API
+  and confirm every page renders the figures it rendered against fixtures. Any
+  difference is a drift bug the vectors should have caught.
 - Until that swap, `git diff --name-only` should show nothing under
   `frontend/src` while a backend slice is being built.
 
