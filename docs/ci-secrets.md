@@ -44,20 +44,55 @@ Per environment (`dev`, `test`, `prod`):
 | `DB_URL` | variable | JDBC URL, no credential in it. Matches `${DB_URL:...}` in `application.yml`. |
 | `DB_USERNAME` | **secret** | |
 | `DB_PASSWORD` | **secret** | Different value in every environment. Never reuse prod's anywhere. |
-| `JWT_SECRET` | **secret** | HS256 signing key, ≥ 256 bits, unique per environment. Generate with `openssl rand -base64 48`. A shared key means a `dev` token authenticates against `prod`. |
+
+**There is no `JWT_SECRET`, and there will not be one.** An earlier draft of
+this document listed one, written before the decision was made. [ADR-11](adr/0011-accounts-sessions-and-token-custody.md)
+replaced JWTs with opaque session tokens stored hashed in the database: there is
+no signing key, so there is no key to distribute, rotate or leak. The row is
+removed rather than left "for later", because a secrets document that lists a
+credential nobody needs is how that credential ends up being created.
 
 ### With BR-8 (multi-currency, live FX provider)
 
+**No secret is needed.** The provider chosen is Frankfurter, which serves
+European Central Bank reference rates and requires no API key — which is the
+main reason it was chosen, since a credential nobody holds is a credential
+nobody can lose.
+
 | Name | Kind | Why |
 |---|---|---|
-| `FX_API_KEY` | **secret** | |
-| `FX_API_URL` | variable | Provider endpoint. Point `dev` and `test` at a sandbox or a stub so tests never burn real quota. |
+| `BUDGETTRACKER_FX_BASE_URL` | variable | Provider endpoint, read by `CachedExchangeRateProvider`. Defaults to `https://api.frankfurter.app`. Point `dev` and `test` at a stub if you would rather they made no outbound call at all. |
+| `BUDGETTRACKER_FX_CACHE_FOR` | variable | ISO-8601 duration, default `PT1H`. |
+
+If the provider is ever swapped for one that does need a key, that key is a
+**secret**, and the note above about `VITE_` prefixes applies with full force:
+it must be read by the backend and never reach the bundle.
 
 ### When a deployment target is chosen
 
-No hosting decision has been made yet, so this is deliberately unfilled. When it is, **prefer OIDC federation over long-lived keys** — GitHub mints a short-lived token per run and there is no standing credential to leak. AWS, Azure, GCP and Fly.io all support it.
+A shape is now proposed: [ADR-13](adr/0013-deploying-on-aws-free-tier.md) — a
+single EC2 instance running the application and its database behind Caddy.
+Nothing is provisioned, and nothing may be exposed publicly until spec §6.2 is
+finished, so the table below is what to add **when the first deploy actually
+happens**, not now.
 
-Only if OIDC is unavailable: `DEPLOY_TOKEN` / `REGISTRY_PASSWORD` as environment secrets on `prod` and `dev`.
+| Name | Kind | Why |
+|---|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | variable | The IAM role GitHub assumes through OIDC. An ARN is not a credential. |
+| `AWS_REGION` | variable | `eu-west-1`. |
+| `DEPLOY_HOST` | variable | The instance address. A hostname in a secret only makes logs unreadable. |
+
+**Prefer OIDC federation over long-lived keys** — GitHub mints a short-lived
+token per run, and there is no standing credential to leak. AWS, Azure, GCP and
+Fly.io all support it. With OIDC there is no `AWS_ACCESS_KEY_ID` and no
+`AWS_SECRET_ACCESS_KEY` anywhere, which is the point.
+
+The database credentials do not belong to GitHub at all under ADR-13: they live
+in SSM Parameter Store and are read by the instance at boot, so a compromised
+workflow cannot read them.
+
+Only if OIDC is unavailable: `DEPLOY_TOKEN` / `REGISTRY_PASSWORD` as environment
+secrets on `prod` and `dev`.
 
 ### Never a secret
 
