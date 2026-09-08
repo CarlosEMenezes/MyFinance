@@ -40,25 +40,48 @@ cp .env.example .env          # then edit it
 docker compose up -d          # postgres:17.5 on 127.0.0.1:5432
 ```
 
-```bash
-cd backend  && ./mvnw spring-boot:run                # :8085, reads .env values
-cd frontend && VITE_USE_MOCK_API=false npm run dev   # proxies /api to :8085
+```powershell
+cd backend;  .\mvnw spring-boot:run                        # :8085
+cd frontend; $env:VITE_USE_MOCK_API='false'; npm run dev   # proxies /api to :8085
 ```
 
-`DB_USERNAME` and `DB_PASSWORD` have **no defaults**, and the application
-refuses to start without them. A fallback password in version control is a
-credential in version control, and it silently becomes the production one.
+```bash
+cd backend  && ./mvnw spring-boot:run
+cd frontend && VITE_USE_MOCK_API=false npm run dev
+```
+
+The application reads `.env` itself, so nothing needs exporting. It does that
+through an `optional:` config import, which finds nothing on a deployed
+instance — there the credentials arrive as real environment variables from SSM
+(ADR-13).
+
+`DB_USERNAME` and `DB_PASSWORD` still have **no defaults**. With no `.env` and
+no environment variables the application refuses to start, which is the point:
+a fallback password in version control is a credential in version control, and
+it silently becomes the production one.
 
 The database container publishes to `127.0.0.1` only. The application is meant
 to be reachable from other machines; the database is not.
 
 ### On your LAN, from a phone
 
+```powershell
+docker compose up -d
+cd backend;  .\mvnw spring-boot:run "-Dspring-boot.run.profiles=local"
+cd frontend; npm run dev:lan
+```
+
 ```bash
 docker compose up -d
 cd backend  && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 cd frontend && npm run dev:lan
 ```
+
+> [!NOTE]
+> **The quotes around `-Dspring-boot.run.profiles=local` are load-bearing in
+> PowerShell.** Unquoted, it is split into `-Dspring-boot` and
+> `.run.profiles=local`, and Maven answers `Unknown lifecycle phase
+> ".run.profiles=local"` — which reads like a Maven problem and is not.
 
 Then open `http://<your-machine-ip>:5173` on the other device. Vite binds every
 interface with `--host`, and its `/api` proxy runs on your machine — so the

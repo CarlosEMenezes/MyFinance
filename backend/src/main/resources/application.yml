@@ -2,6 +2,28 @@ spring:
   application:
     name: budgetTracker
 
+  config:
+    # A local convenience, and only that. Docker Compose reads `.env`
+    # automatically; Spring Boot does not, so without this every local run
+    # needs the two credentials exported by hand in whatever syntax the current
+    # shell happens to want.
+    #
+    # `optional:` is what makes it harmless everywhere else: a deployed
+    # instance has no `.env` and takes its credentials from SSM as real
+    # environment variables (ADR-13), so this finds nothing and changes
+    # nothing.
+    #
+    # This does NOT introduce a credential default. With no `.env` and no
+    # environment variables, ${DB_USERNAME} below still resolves to nothing and
+    # the application still refuses to start. The rule is that there is no
+    # fallback *in version control*, and `.env` is gitignored.
+    #
+    # Both paths, because `spring-boot:run` works from `backend/` while a
+    # packaged jar is usually run from the repository root.
+    import:
+      - optional:file:./.env[.properties]
+      - optional:file:../.env[.properties]
+
   datasource:
     # Credentials come from the environment and have no default on purpose: a
     # fallback password in version control is a credential in version control,

@@ -63,7 +63,7 @@ Dependency rule (ArchUnit-enforced): `api → application → domain`, `infrastr
 ```bash
 cd backend  && ./mvnw verify          # tests run on H2 — no database needed
 docker compose up -d                  # postgres:17.5 on 127.0.0.1:5432
-cd backend  && ./mvnw spring-boot:run # reads DB_USERNAME / DB_PASSWORD from the environment
+cd backend  && ./mvnw spring-boot:run # credentials come from .env, via an optional config import
 cd frontend && npm ci && npm run dev  # fake API in-browser; see below
 ```
 
@@ -73,9 +73,14 @@ database version. It binds to `127.0.0.1` only: the application is meant to be
 reachable from other machines on the network, the database is not.
 
 **To reach it from a phone**, run the backend with
-`-Dspring-boot.run.profiles=local` and the frontend with `npm run dev:lan`. The
-profile exists for one reason — see gotcha 36 — and must never be used
-anywhere else.
+`"-Dspring-boot.run.profiles=local"` — the quotes matter in PowerShell, see
+gotcha 38 — and the frontend with `npm run dev:lan`. The profile exists for one
+reason, gotcha 36, and must never be used anywhere else.
+
+`application.yml` imports `.env` through `spring.config.import` with an
+`optional:` prefix, so a local run needs nothing exported and a deployed
+instance is unaffected. It is **not** a credential default: with no `.env` and
+no environment variables the application still refuses to start.
 
 `npm run dev` serves the app against MSW's browser worker, answering from the same `src/test/handlers.ts` the tests use, because the frontend was finished before the backend. Once a server is listening on :8085, `VITE_USE_MOCK_API=false npm run dev` proxies `/api` to it instead. A production build never contains the worker: `import.meta.env.DEV` is statically false, so the dynamic import is dropped.
 
@@ -385,6 +390,8 @@ The prototype's `DCLogic` class is the reference implementation for the business
 Things discovered the hard way. Never rediscover these.
 
 1. **`RecurrenceFrequency` must never reach `periodsPerYear`.** BR-17 keeps two frequency vocabularies apart. `periodsPerYear` is defined for 52/26/12 only; a `DAILY` or `YEARLY` value would return `undefined` and produce a meaningless APR from BR-6's solver. Instalment plans and loans take BR-6's `Frequency`; recurrence rules take `RecurrenceFrequency`. Do not widen the shared type to "simplify".
+1. **PowerShell splits `-Dfoo.bar=baz` into two arguments.** Maven then reports `Unknown lifecycle phase ".bar=baz"`, which reads like a Maven problem and is not — the argument was broken before Maven saw it. Quote the whole token: `"-Dspring-boot.run.profiles=local"`. PowerShell also cannot prefix a command with an assignment, so `FOO=bar cmd` has to be `$env:FOO='bar'; cmd`. **This repo's primary shell is PowerShell**, so any command written from a bash shell needs checking there before it goes into a document — both of those were documented wrong for exactly that reason.
+1. **`spring-boot:run` forks a JVM, so killing Maven leaves the application running.** The port stays held and the next start fails with "Port 8085 was already in use", which looks like a stale lock and is a live process. Find it with `Get-NetTCPConnection -LocalPort 8085 -State Listen` and stop the owning PID.
 1. **A `Secure` cookie is silently discarded over plain HTTP.** Signing in over `http://192.168.…` returns **201 with a `Set-Cookie`**, the browser drops it, and every request after it is a 401 — so the failure looks like "sign-in is broken" when sign-in worked perfectly. `app.cookie.secure` defaults to `true` (ADR-11); `application-local.yml` turns it off for LAN testing and says why. Never in a deployed environment.
 1. **A third-party URL can go stale and no test will ever tell you.** `api.frankfurter.app` began answering **301** to `api.frankfurter.dev/v1`, and the JDK HTTP client does not follow redirects — so every BR-8 rate lookup failed, and with it *every* transaction save. No test can catch this, because no test may depend on a third party being reachable, and every test that touches FX rightly stubs the provider. It was caught by running the application for the first time. When something works in every test and fails the moment it is real, suspect an outbound URL.
 1. **Spring Boot 4 ships Jackson 3, and there is no `com.fasterxml.jackson.databind.ObjectMapper` bean.** Jackson 2 is still on the classpath transitively, so the old import compiles and the application then fails to start with "No qualifying bean of type ObjectMapper". The bean is `tools.jackson.databind.ObjectMapper` (a `JsonMapper`). Annotations stay in `com.fasterxml.jackson.annotation` — `@JsonInclude` is unchanged — and Jackson 3 made its exceptions **unchecked**, so `writeValueAsString` no longer needs a catch. Same family as gotcha 10: if something that worked under Boot 3 is silently absent under Boot 4, look for the module or the package that moved.
