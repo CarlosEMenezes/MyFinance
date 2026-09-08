@@ -124,6 +124,14 @@ Each rule has at least one test **named after it**, referencing the BR number.
 24. **BR-24 A detection is matched before it is offered.** Matched on amount, currency, ±3 days, and payment method where known. A match is `MATCHED` and not offered, so a hand-logged expense is never presented twice. Matching is advisory: it never edits, merges or deletes.
 25. **BR-25 One column contract, three consumers.** `docs/sheet-import-format.md` feeds the parser, the template and the Import page explanation. The template is **generated per user**, pre-filled with their own categories, accounts and cards, and a test asserts a fresh template parses cleanly. Breaking any of the three fails the build.
 
+### Phase 1.5 rules (spec §6.0 — specified, built with step 11)
+
+**Numbered after Phase 2 and built before it.** BR numbering is append-only, so these read last while belonging with step 11 in time.
+
+26. **BR-26 Offline is read-only.** The only thing cached is the most recent successful `GET /dashboard` payload, per period window fetched. Every other page is unavailable offline and says so. Nothing is recomputed on the device — ADR-7 does not relax when the network drops. **Every write is refused**, never queued: a replayed write would land against an FX rate that has moved (BR-8), a bill date from a cycle that may have changed (BR-4), and a plan that may have been edited (BR-14), and an entry that looked saved and was not is worse than one plainly refused.
+27. **BR-27 Signing out wipes the cache.** Removed from the device on explicit sign-out *and* on any 401. Keyed to the user it was fetched for, and a payload whose user does not match the signed-in one is discarded rather than shown — on a shared device, one person's figures must never greet the next. No credential and no session token is ever cached; ADR-11 already puts the session beyond JavaScript's reach.
+
+
 ---
 
 ## 5. Architectural decisions (ADR log)
@@ -335,7 +343,7 @@ Each row is triggered by the row above being finished. Nothing here is started e
 |---|---|
 | **Now** | Cards → Categories & plan → Transactions → Financing → Dashboard → Goals → Notifications. One feature per commit, in that order, each following the eight steps below. |
 | **Once every endpoint is live** | **Swap the fake API for the real one.** Set `VITE_USE_MOCK_API=false`, run the backend, and confirm every page renders the same figures it did against fixtures. Any difference is a drift bug the shared vectors should have caught. **Do not delete `handlers.ts`** — it is also the test double behind all 674 frontend tests. What goes is the browser worker, not the file. |
-| **Step 11 (Hardening) begins** | Write the **Phase 1.5** amendment — settled, deliberately unwritten until here so it is specified against a working app: **BR-26** offline is read-only and limited to the cached `GET /dashboard` payload, writes refused with a clear message; **BR-27** signing out wipes the cache; §0.7 extended to cover the cached payload; §6 gains Phase 1.5; §5 gains `StaleDataNotice`, non-dismissible and persisting until fresh data arrives. **BR numbering is append-only**; §4 of this file updated in the same commit. |
+| ~~Step 11 (Hardening) begins~~ **Done** | The **Phase 1.5** amendment is written: **BR-26** and **BR-27** in spec §3 and in §4 above, §0.7 extended to cover the cached payload, spec §6.0 added as step **17** (append-only numbering — it belongs with step 11 in time), and `StaleDataNotice` added to §5. Specified, not yet built. |
 | **Step 11** | Playwright journeys for the five critical flows, performance pass, accessibility audit, documentation — including the offline cache just specified. |
 | **Before any public exposure** | Finish spec §6.2: TOTP, ten single-use recovery codes, rate limiting on the auth endpoints, password reset, and **Argon2id as the `DelegatingPasswordEncoder` default** — which re-hashes on next sign-in rather than forcing a reset. |
 | **After step 11** | Phase 2 (§6.1): tags and recurrence → sheet import → detection. **Nothing from BR-16–BR-25 before this point.** |

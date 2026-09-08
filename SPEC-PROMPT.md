@@ -87,6 +87,12 @@ all of them.
 - **Every capture is attributable.** A Transaction records how it entered the
   system, so a user can always answer "why is this here?".
 - A capability the user has not enabled must be **inert**, not merely hidden.
+- **The offline cache holds only what a screen has already shown.** BR-26's
+  cached `GET /dashboard` payload lives in the browser's own per-origin storage,
+  never leaves the device, and contains no credential and no session token —
+  ADR-11 puts the session in an HttpOnly cookie that no script can read.
+  Retention is not a timer: the cache is wiped on sign-out and on any 401
+  (BR-27), because a cache nobody is signed in to has no reason to exist.
 
 ---
 
@@ -429,6 +435,44 @@ parser, and a test asserts that a freshly generated template parses cleanly
 through the parser with no problems reported. A change to the contract that
 breaks any of the three fails the build.
 
+**BR-26 — Offline is read-only.**
+The application works without a network connection, and only for reading.
+
+The one thing cached is the most recent successful `GET /dashboard` payload,
+per period window fetched, for the signed-in user. Nothing else is: Cards,
+Categories, Goals, Notifications and Settings are unavailable offline and say
+so, rather than showing a spinner that will never resolve. A period window that
+was never fetched is unavailable too — BR-10 counts occurrences on dates the
+cache cannot answer for, and inventing them would be worse than an honest gap.
+
+Offline, Overview, Earnings and Expenses render that payload **exactly as it
+was received**. No figure is recomputed: ADR-7 does not relax when the network
+drops, and a figure the payload does not carry is shown as absent rather than
+derived on the device.
+
+**Every write is refused while offline**, with a message saying plainly that
+the entry has not been saved. Writes are never queued and never optimistically
+applied. A queued write replayed later would be logged against an exchange rate
+that has since moved (BR-8), a bill date computed from a statement cycle that
+may have changed (BR-4), and a plan that may have been edited since (BR-14).
+An entry that looked saved and was not is worse than one that was plainly
+refused.
+
+Anything drawn from the cache is labelled with when it was taken, by
+`StaleDataNotice` (§5). The notice cannot be dismissed: it goes when fresh data
+arrives and at no other time.
+
+**BR-27 — Signing out wipes the cache.**
+The cached payload is a complete picture of somebody's month. Signing out
+removes it from the device rather than merely ceasing to display it.
+
+It is wiped on an explicit sign-out **and** on any 401 from the API, which is
+what a session expired or revoked elsewhere looks like from this side.
+
+The cache is keyed to the user it was fetched for, and a cached payload whose
+user does not match the signed-in user is discarded rather than shown. On a
+shared device, one person's figures must never greet the next.
+
 ---
 
 ## 4. Backend — Java 17 + Spring Boot
@@ -536,6 +580,13 @@ Added components, each in its own folder per §0.6: `TagPicker`,
 `TagChip` gains a `tone` prop constrained to `TagTone`. It accepts a tone name,
 never a colour.
 
+`StaleDataNotice` arrives with Phase 1.5 (§6.0). It states when the figures on
+screen were taken and is **not dismissible** — it goes when fresh data arrives
+and at no other time. A notice a user can close is one they will close, and the
+figures underneath it then look current forever after. It is announced as well
+as drawn: an offline view that only *looks* different is one a screen reader
+never learns about.
+
 BR-16's bounded counting extends `lib/period.ts` rather than adding a parallel
 module, and every existing BR-10 test must remain green and unmodified.
 
@@ -576,6 +627,24 @@ edited away from. The reasoning, the cost and the mitigation are recorded in
 `docs/adr/0012-frontend-first-against-a-frozen-contract.md`. This changes the
 order of the work, not its content: every step's rules, tests and deliverables
 stand exactly as written above.
+
+## 6.0 Phase 1.5 — offline, read-only
+
+Specified after step 10 and **built as part of step 11**. It was deliberately
+left unwritten until there was a working application to specify it against: an
+offline mode designed before the online one is a guess about which screens
+matter, and this one is deliberately narrow because the working app showed that
+only one payload is worth keeping.
+
+17. **Offline read-only** — BR-26, BR-27 and `StaleDataNotice`. The cached
+    `GET /dashboard` payload, the refusal of every write while the network is
+    gone, the wipe on sign-out and on 401, and the notice that says how old the
+    figures on screen are.
+
+The number is 17 because numbering here is **append-only**: it follows §6.3's
+step 16 in sequence while belonging with step 11 in time. Nothing is ever
+renumbered — a step number quoted in a commit message or an ADR has to keep
+meaning what it meant when it was written.
 
 ## 6.1 Phase 2 — reducing manual entry
 
