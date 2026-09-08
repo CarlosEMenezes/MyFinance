@@ -14,6 +14,7 @@ import ie.budgetTracker.domain.cards.Card;
 import ie.budgetTracker.domain.cards.CreditCard;
 import ie.budgetTracker.domain.cards.StatementCycleCalculator;
 import ie.budgetTracker.domain.financing.InstalmentPlan;
+import ie.budgetTracker.domain.money.Currency;
 import ie.budgetTracker.domain.money.ExchangeRates;
 import ie.budgetTracker.domain.money.MoneyCalculator;
 import ie.budgetTracker.domain.plan.Category;
@@ -75,13 +76,8 @@ public class TransactionService {
 		Card card = cards.findForUser(user, request.paymentMethodId()).orElse(null);
 		PaymentMethod method = card != null ? asPaymentMethod(card) : asAccount(user, request);
 
-		ExchangeRates rates = fx.currentRates();
 		BigDecimal amount = Money.fromMinorUnits(request.amount());
-		BigDecimal rate = rates.rateFrom(request.currency(), rates.base())
-				.orElseThrow(() -> AppException.unavailable(
-						"No exchange rate from " + request.currency() + " to " + rates.base()
-								+ " is available, so this amount cannot be converted. "
-								+ "The entry has not been saved."));
+		BigDecimal rate = rateFor(request.currency());
 
 		return TransactionResponse.from(transactions.create(user, new Transaction(
 				null,
@@ -119,6 +115,31 @@ public class TransactionService {
 				terms.frequency(), request.date());
 
 		return plan.id();
+	}
+
+	/**
+	 * BR-8: the rate, fetched only when something is actually being converted.
+	 *
+	 * An entry already in the user's own currency is not converted at all: the
+	 * rate is exactly one by definition, and there is nothing to look up. Asking
+	 * the provider anyway would mean an outage at a third party stopped somebody
+	 * logging a euro expense in a euro account - which is not what BR-8 protects
+	 * against. BR-8 forbids *guessing* a rate, and one is not a guess when no
+	 * currency is crossed.
+	 *
+	 * When a currency is crossed the rule applies in full: no rate, no save.
+	 */
+	private BigDecimal rateFor(Currency logged) {
+		if (logged == fx.defaultCurrency()) {
+			return BigDecimal.ONE;
+		}
+
+		ExchangeRates rates = fx.currentRates();
+		return rates.rateFrom(logged, rates.base())
+				.orElseThrow(() -> AppException.unavailable(
+						"No exchange rate from " + logged + " to " + rates.base()
+								+ " is available, so this amount cannot be converted. "
+								+ "The entry has not been saved."));
 	}
 
 	/**

@@ -17,8 +17,9 @@ the goal I set".
 
 ## Running it
 
-**Prerequisites:** JDK 17 (BellSoft Liberica), Node 24 (see `.nvmrc`), Docker
-for the integration tests, and PostgreSQL for running the backend.
+**Prerequisites:** JDK 17 (BellSoft Liberica), Node 24 (see `.nvmrc`), and
+Docker — for the integration tests, and for the PostgreSQL the application runs
+against.
 
 ### Tests, which need nothing running
 
@@ -32,14 +33,44 @@ version is on most machines' `PATH`.
 
 ### The application
 
+A PostgreSQL is needed. There is one in `compose.yml`:
+
 ```bash
-cd backend  && DB_USERNAME=… DB_PASSWORD=… ./mvnw spring-boot:run   # :8085
-cd frontend && VITE_USE_MOCK_API=false npm run dev                  # proxies /api to :8085
+cp .env.example .env          # then edit it
+docker compose up -d          # postgres:17.5 on 127.0.0.1:5432
+```
+
+```bash
+cd backend  && ./mvnw spring-boot:run                # :8085, reads .env values
+cd frontend && VITE_USE_MOCK_API=false npm run dev   # proxies /api to :8085
 ```
 
 `DB_USERNAME` and `DB_PASSWORD` have **no defaults**, and the application
 refuses to start without them. A fallback password in version control is a
 credential in version control, and it silently becomes the production one.
+
+The database container publishes to `127.0.0.1` only. The application is meant
+to be reachable from other machines; the database is not.
+
+### On your LAN, from a phone
+
+```bash
+docker compose up -d
+cd backend  && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+cd frontend && npm run dev:lan
+```
+
+Then open `http://<your-machine-ip>:5173` on the other device. Vite binds every
+interface with `--host`, and its `/api` proxy runs on your machine — so the
+phone sees one origin and the API is reached locally.
+
+> [!IMPORTANT]
+> **The `local` profile is not optional here.** The session cookie is `Secure`
+> (ADR-11), and browsers only accept a `Secure` cookie over HTTPS. Without the
+> profile, signing in over `http://192.168.…` returns 201 and the browser then
+> silently discards the cookie — so every request after it comes back 401 while
+> the sign-in itself looked like it worked. `application-local.yml` turns
+> `Secure` off for exactly this case, and says why. Never use it in production.
 
 ### The frontend on its own
 

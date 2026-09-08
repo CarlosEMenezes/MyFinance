@@ -4,6 +4,7 @@ import ie.budgetTracker.application.AppException;
 import ie.budgetTracker.application.fx.dto.FxRatesResponse;
 import ie.budgetTracker.application.identity.CurrentUser;
 import ie.budgetTracker.application.identity.UserRepository;
+import ie.budgetTracker.domain.money.Currency;
 import ie.budgetTracker.domain.money.ExchangeRates;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +36,19 @@ public class FxService {
 
 	/** The snapshot every conversion in this request is made against. */
 	public ExchangeRates currentRates() {
-		return provider.ratesFor(users.findById(currentUser.id())
+		return provider.ratesFor(defaultCurrency());
+	}
+
+	/**
+	 * The currency every total is stated in.
+	 *
+	 * Answered from the profile alone, without touching the rate provider,
+	 * because the commonest question - "does this even need converting?" - must
+	 * not depend on a third party being reachable.
+	 */
+	public Currency defaultCurrency() {
+		return users.findById(currentUser.id())
 				.orElseThrow(() -> AppException.notFound("No profile for the current user"))
-				.defaultCurrency());
+				.defaultCurrency();
 	}
 }

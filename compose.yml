@@ -1,0 +1,55 @@
+# PostgreSQL for running the application locally.
+#
+# This is development only. It is not the deployment — that is proposed in
+# docs/adr/0013-deploying-on-aws-free-tier.md, and nothing here is provisioned
+# anywhere yet.
+#
+# The tests do not need this. `./mvnw verify` runs the unit and slice tests on
+# in-memory H2, and the integration tests start their own throwaway PostgreSQL
+# through Testcontainers on a random port. Nothing in the build talks to this
+# container, so it can be up, down or out of date without the build noticing.
+
+services:
+  db:
+    # Pinned to the exact image IntegrationTest already starts under
+    # Testcontainers, so local development, CI and the integration tests all
+    # meet the same database. A floating tag would mean the thing you develop
+    # against and the thing the build asserts on could drift apart silently.
+    image: postgres:17.5
+    container_name: budgettracker-db
+
+    environment:
+      # Matches the DB_URL default in backend/src/main/resources/application.yml,
+      # so the backend needs no URL override to find this.
+      POSTGRES_DB: budgettracker
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+    ports:
+      # Bound to the loopback interface on purpose. The application is reachable
+      # over the LAN; the database is not. Publishing 5432 to every interface
+      # would put an unencrypted database on the same network as every guest
+      # device, for no gain — the backend connects from this machine.
+      - '127.0.0.1:5432:5432'
+
+    volumes:
+      # A named volume, so `docker compose down` keeps the data and only
+      # `down -v` throws it away. Losing an afternoon of test entries to a
+      # routine restart would be a poor trade for one less line.
+      - budgettracker-db:/var/lib/postgresql/data
+
+    healthcheck:
+      # `docker compose up -d` returns as soon as the container starts, which is
+      # before PostgreSQL is ready to accept connections. Starting the backend
+      # in that gap fails with a connection refused that looks like a
+      # configuration problem and is not.
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d budgettracker']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+volumes:
+  budgettracker-db:

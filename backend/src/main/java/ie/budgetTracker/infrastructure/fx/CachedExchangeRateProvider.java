@@ -23,6 +23,12 @@ import org.springframework.web.client.RestClient;
  * The base URL is configurable, so swapping providers is configuration rather
  * than a code change.
  *
+ * The URL is `api.frankfurter.dev/v1`. The older `api.frankfurter.app` now
+ * answers 301, and this client does not follow redirects - so a stale host here
+ * does not degrade, it stops every conversion in the application. Nothing in
+ * the test suite can catch that, because no test may depend on a third party
+ * being reachable; it is caught by running the thing.
+ *
  * Three behaviours worth being explicit about:
  *
  *   - **Cached, with the age published.** A rate does not move enough in an
@@ -46,7 +52,7 @@ class CachedExchangeRateProvider implements ExchangeRateProvider {
 	private final Map<Currency, ExchangeRates> cache = new ConcurrentHashMap<>();
 
 	CachedExchangeRateProvider(RestClient.Builder http, Clock clock,
-			@Value("${budgettracker.fx.base-url:https://api.frankfurter.app}") String baseUrl,
+			@Value("${budgettracker.fx.base-url:https://api.frankfurter.dev/v1}") String baseUrl,
 			@Value("${budgettracker.fx.cache-for:PT1H}") Duration cacheFor) {
 		this.http = http.build();
 		this.clock = clock;

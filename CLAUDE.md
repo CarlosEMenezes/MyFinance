@@ -62,9 +62,20 @@ Dependency rule (ArchUnit-enforced): `api → application → domain`, `infrastr
 
 ```bash
 cd backend  && ./mvnw verify          # tests run on H2 — no database needed
-cd backend  && DB_USERNAME=… DB_PASSWORD=… ./mvnw spring-boot:run   # needs PostgreSQL
+docker compose up -d                  # postgres:17.5 on 127.0.0.1:5432
+cd backend  && ./mvnw spring-boot:run # reads DB_USERNAME / DB_PASSWORD from the environment
 cd frontend && npm ci && npm run dev  # fake API in-browser; see below
 ```
+
+`compose.yml` pins **the same `postgres:17.5`** the Testcontainers integration
+tests start, so local development, CI and the integration tests all meet one
+database version. It binds to `127.0.0.1` only: the application is meant to be
+reachable from other machines on the network, the database is not.
+
+**To reach it from a phone**, run the backend with
+`-Dspring-boot.run.profiles=local` and the frontend with `npm run dev:lan`. The
+profile exists for one reason — see gotcha 36 — and must never be used
+anywhere else.
 
 `npm run dev` serves the app against MSW's browser worker, answering from the same `src/test/handlers.ts` the tests use, because the frontend was finished before the backend. Once a server is listening on :8085, `VITE_USE_MOCK_API=false npm run dev` proxies `/api` to it instead. A production build never contains the worker: `import.meta.env.DEV` is statically false, so the dynamic import is dropped.
 
@@ -342,6 +353,7 @@ Each row is triggered by the row above being finished. Nothing here is started e
 | Trigger | Work |
 |---|---|
 | **Now** | Cards → Categories & plan → Transactions → Financing → Dashboard → Goals → Notifications. One feature per commit, in that order, each following the eight steps below. |
+| ~~Once every endpoint is live~~ **Done at the API level** | The swap has been run against real PostgreSQL: register, create an account and a category, log an expense, read `GET /dashboard`. September 2026 counts **four** Saturdays for a weekly plan anchored to 2026-01-03 (BR-10), `availableNow` drops by the expense (BR-1), and `GET /fx/rates` returns live ECB rates. **The browser pass is still to do.** |
 | **Once every endpoint is live** | **Swap the fake API for the real one.** Set `VITE_USE_MOCK_API=false`, run the backend, and confirm every page renders the same figures it did against fixtures. Any difference is a drift bug the shared vectors should have caught. **Do not delete `handlers.ts`** — it is also the test double behind all 674 frontend tests. What goes is the browser worker, not the file. |
 | ~~Step 11 (Hardening) begins~~ **Done** | The **Phase 1.5** amendment is written: **BR-26** and **BR-27** in spec §3 and in §4 above, §0.7 extended to cover the cached payload, spec §6.0 added as step **17** (append-only numbering — it belongs with step 11 in time), and `StaleDataNotice` added to §5. Specified, not yet built. |
 | **Step 11** | Playwright journeys for the five critical flows, performance pass, accessibility audit, documentation — including the offline cache just specified. |
@@ -372,6 +384,8 @@ The prototype's `DCLogic` class is the reference implementation for the business
 Things discovered the hard way. Never rediscover these.
 
 1. **`RecurrenceFrequency` must never reach `periodsPerYear`.** BR-17 keeps two frequency vocabularies apart. `periodsPerYear` is defined for 52/26/12 only; a `DAILY` or `YEARLY` value would return `undefined` and produce a meaningless APR from BR-6's solver. Instalment plans and loans take BR-6's `Frequency`; recurrence rules take `RecurrenceFrequency`. Do not widen the shared type to "simplify".
+1. **A `Secure` cookie is silently discarded over plain HTTP.** Signing in over `http://192.168.…` returns **201 with a `Set-Cookie`**, the browser drops it, and every request after it is a 401 — so the failure looks like "sign-in is broken" when sign-in worked perfectly. `app.cookie.secure` defaults to `true` (ADR-11); `application-local.yml` turns it off for LAN testing and says why. Never in a deployed environment.
+1. **A third-party URL can go stale and no test will ever tell you.** `api.frankfurter.app` began answering **301** to `api.frankfurter.dev/v1`, and the JDK HTTP client does not follow redirects — so every BR-8 rate lookup failed, and with it *every* transaction save. No test can catch this, because no test may depend on a third party being reachable, and every test that touches FX rightly stubs the provider. It was caught by running the application for the first time. When something works in every test and fails the moment it is real, suspect an outbound URL.
 1. **Spring Boot 4 ships Jackson 3, and there is no `com.fasterxml.jackson.databind.ObjectMapper` bean.** Jackson 2 is still on the classpath transitively, so the old import compiles and the application then fails to start with "No qualifying bean of type ObjectMapper". The bean is `tools.jackson.databind.ObjectMapper` (a `JsonMapper`). Annotations stay in `com.fasterxml.jackson.annotation` — `@JsonInclude` is unchanged — and Jackson 3 made its exceptions **unchecked**, so `writeValueAsString` no longer needs a catch. Same family as gotcha 10: if something that worked under Boot 3 is silently absent under Boot 4, look for the module or the package that moved.
 1. **A nested Spring Data repository interface is never scanned.** `JpaTransactionRepository` declared its `JpaRepository` as an inner interface, which compiles, starts, and then fails every context load with "No qualifying bean of type ...$Entries". Repository interfaces have to be top-level types in a scanned package. Keep them beside the adapter that uses them, as every other slice does.
 1. **A controller cannot bind a query parameter to a domain enum.** ArchUnit's layer rule reads method *parameters*, so `list(@RequestParam PeriodKind period, …)` is `api → domain` and fails the build — even though nothing is calculated. Take the raw `String` and convert in the application layer. This is not a workaround: the conversion earns its keep, because an unknown value then comes back as a 400 naming the parameter and listing what it accepts, instead of a framework message nobody wrote.

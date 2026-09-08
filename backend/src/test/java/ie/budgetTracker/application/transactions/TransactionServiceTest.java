@@ -90,7 +90,13 @@ class TransactionServiceTest {
 				() -> ADA);
 	}
 
+	/** What the user's totals are stated in. Needs no provider. */
+	private void totalsAreInEuro() {
+		given(fx.defaultCurrency()).willReturn(Currency.EUR);
+	}
+
 	private void ratesAreAvailable() {
+		totalsAreInEuro();
 		given(fx.currentRates()).willReturn(new ExchangeRates(Currency.EUR, Map.of(
 				Currency.EUR, BigDecimal.ONE,
 				Currency.USD, new BigDecimal("1.0858"),
@@ -159,7 +165,7 @@ class TransactionServiceTest {
 		void aSameCurrencyEntryRecordsARateOfOne() {
 			groceriesExists();
 			theCurrentAccountIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(spend(8000L, Currency.EUR, REVOLUT));
@@ -170,10 +176,27 @@ class TransactionServiceTest {
 		}
 
 		@Test
+		@DisplayName("BR-8: an entry needing no conversion never asks the rate provider")
+		void anEntryNeedingNoConversionNeverAsksTheProvider() {
+			groceriesExists();
+			theCurrentAccountIsTheMethod();
+			totalsAreInEuro();
+			savedAsGiven();
+
+			service.log(spend(8000L, Currency.EUR, REVOLUT));
+
+			// BR-8 forbids guessing a rate, and one is not a guess when nothing is
+			// converted. Asking anyway would mean an outage at a third party
+			// stopped somebody logging a euro expense from a euro account.
+			Mockito.verify(fx, Mockito.never()).currentRates();
+		}
+
+		@Test
 		@DisplayName("BR-8: a currency with no rate blocks the save rather than guessing")
 		void aMissingRateBlocksTheSave() {
 			groceriesExists();
 			theCurrentAccountIsTheMethod();
+			totalsAreInEuro();
 			given(fx.currentRates()).willReturn(new ExchangeRates(Currency.EUR,
 					Map.of(Currency.EUR, BigDecimal.ONE), Instant.parse("2026-08-31T07:12:00Z")));
 
@@ -198,7 +221,7 @@ class TransactionServiceTest {
 		void aCreditCardExpenseIsPlannedForItsBillDate() {
 			groceriesExists();
 			theVisaIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(spend(5000L, Currency.EUR, VISA));
@@ -216,7 +239,7 @@ class TransactionServiceTest {
 			groceriesExists();
 			given(cards.findForUser(ADA, VISA)).willReturn(
 					Optional.of(new DebitCard(VISA, "Revolut debit", REVOLUT)));
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(spend(5000L, Currency.EUR, VISA));
@@ -235,7 +258,7 @@ class TransactionServiceTest {
 					TUTORING, CategoryType.EARNING, "Tutoring", "Self-employed", of("160.00"),
 					Frequency.WEEKLY, LocalDate.parse("2026-01-05"), false)));
 			theVisaIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(new CreateTransactionRequest(TransactionType.EARNING, TUTORING, 16000L,
@@ -249,7 +272,7 @@ class TransactionServiceTest {
 		void anAccountExpenseHasNoBillDateEither() {
 			groceriesExists();
 			theCurrentAccountIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(spend(5000L, Currency.EUR, REVOLUT));
@@ -283,7 +306,7 @@ class TransactionServiceTest {
 		void aSavingGoesIntoAnExpenseCategory() {
 			groceriesExists();
 			theCurrentAccountIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(new CreateTransactionRequest(TransactionType.SAVING, GROCERIES, 1000L,
@@ -321,7 +344,7 @@ class TransactionServiceTest {
 			UUID planId = UUID.randomUUID();
 			groceriesExists();
 			theVisaIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 			given(financing.planFor(eq(VISA), any(), eq(39900L), eq(6), eq(7150L),
 					eq(Frequency.MONTHLY), any()))
@@ -344,7 +367,7 @@ class TransactionServiceTest {
 		void anOrdinaryPurchaseCreatesNoPlan() {
 			groceriesExists();
 			theCurrentAccountIsTheMethod();
-			ratesAreAvailable();
+			totalsAreInEuro();
 			savedAsGiven();
 
 			service.log(spend(5000L, Currency.EUR, REVOLUT));

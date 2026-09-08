@@ -1,0 +1,22 @@
+# The `local` profile: running the application on your own machine, over plain
+# HTTP, reachable from other devices on your network.
+#
+# Start it with:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+#
+# This exists as a named profile rather than an environment variable because
+# what it turns off is a security control, and a security control should be
+# switched off in a file that says so rather than by an exported variable
+# somebody forgets is set.
+
+app:
+  cookie:
+    # ADR-11 puts the session in a Secure cookie, which browsers only accept
+    # over HTTPS. On a LAN address there is no certificate, so the browser
+    # takes the sign-in response, silently discards the cookie, and every
+    # request after it comes back 401 - while the sign-in itself looked like it
+    # worked. That failure signature is the reason this file exists.
+    #
+    # NEVER in production. A session cookie without Secure travels in clear
+    # text over any network between the browser and the server.
+    secure: false
